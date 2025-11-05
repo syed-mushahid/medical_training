@@ -1,15 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { useToast } from '../components/ui/use-toast.jsx';
-import { ArrowLeft, Send, Sparkles, X, User } from 'lucide-react';
+import { ArrowLeft, Send, Sparkles, X, User, GraduationCap, UserCircle, FileText, CheckCircle, RefreshCw } from 'lucide-react';
 import Loading from '../components/Loading';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/dialog';
 
 export default function ChatMessages() {
-  const { chatId, sessionId } = useParams();
-  const navigate = useNavigate();
+          const { chatId, sessionId } = useParams();
+          const navigate = useNavigate();
+          const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [sessionInfo, setSessionInfo] = useState(null);
   const [chatInfo, setChatInfo] = useState(null);
@@ -17,6 +25,9 @@ export default function ChatMessages() {
   const [sending, setSending] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [displayedMessages, setDisplayedMessages] = useState({});
+  const [evaluation, setEvaluation] = useState(null);
+  const [evaluationLoading, setEvaluationLoading] = useState(false);
+  const [evaluationDialogOpen, setEvaluationDialogOpen] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const typingIntervalsRef = useRef({});
@@ -38,6 +49,7 @@ export default function ChatMessages() {
   useEffect(() => {
     fetchSessionDetails();
     fetchChatInfo();
+    fetchEvaluation();
   }, [chatId, sessionId]);
 
   useEffect(() => {
@@ -90,6 +102,47 @@ export default function ChatMessages() {
     }
   };
 
+  const fetchEvaluation = async () => {
+    try {
+      const response = await api.get(`/chats/${chatId}/sessions/${sessionId}/evaluation`);
+      if (response.data.success) {
+        setEvaluation(response.data.evaluation);
+      }
+    } catch (error) {
+      console.error('Failed to fetch evaluation:', error);
+    }
+  };
+
+  const handleGenerateEvaluation = async () => {
+    // If evaluation exists, show it in dialog
+    if (evaluation) {
+      setEvaluationDialogOpen(true);
+      return;
+    }
+    
+    // Otherwise generate new evaluation
+    try {
+      setEvaluationLoading(true);
+      const response = await api.post(`/chats/${chatId}/sessions/${sessionId}/evaluate`);
+      if (response.data.success) {
+        setEvaluation(response.data.evaluation);
+        setEvaluationDialogOpen(true);
+        toast({
+          title: 'Success',
+          description: 'Evaluation report generated successfully!',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.error || 'Failed to generate evaluation',
+        variant: 'destructive',
+      });
+    } finally {
+      setEvaluationLoading(false);
+    }
+  };
+
   const fetchSessionDetails = async () => {
     try {
       setLoading(true);
@@ -101,9 +154,16 @@ export default function ChatMessages() {
         setSessionInfo(session);
         // Only set messages if we don't have any yet, or if we're refreshing
         if (messages.length === 0) {
-          setMessages(session.messages || []);
+          // Parse and store character for each loaded message, and clean content
+          const loadedMessages = (session.messages || []).map(msg => {
+            if (msg.role === 'assistant' && msg.content) {
+              const { character, cleanedContent } = parseMessageContent(msg.content);
+              return { ...msg, character, content: cleanedContent };
+            }
+            return msg;
+          });
+          setMessages(loadedMessages);
           // Reset displayed messages for loaded messages
-          const loadedMessages = session.messages || [];
           const newDisplayed = {};
           loadedMessages.forEach(msg => {
             if (msg.id || msg.content) {
@@ -120,19 +180,52 @@ export default function ChatMessages() {
         });
       }
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to fetch session details',
-        variant: 'destructive',
-      });
+      const errorMessage = error.response?.data?.error || 'Failed to fetch session details';
+      // Check if chat doesn't exist
+      if (error.response?.status === 400 && (errorMessage.includes("doesn't exist") || errorMessage.includes("not found") || errorMessage.includes("not have access"))) {
+        toast({
+          title: 'Chat Assistant Unavailable',
+          description: 'This chat assistant is no longer available. This session is no longer accessible.',
+          variant: 'destructive',
+        });
+        // Navigate back based on user role
+        setTimeout(() => {
+          if (user?.role === 'student') {
+            navigate('/student/chats');
+          } else {
+            navigate(`/ragflow/chats/${chatId}/sessions`);
+          }
+        }, 2000);
+      } else {
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+        if (user?.role === 'student') {
+          navigate('/student/chats');
+        } else {
+          navigate(`/ragflow/chats/${chatId}/sessions`);
+        }
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleSendMessage = async (question = null) => {
-    const messageText = question || newMessage.trim();
+    // Prevent sending messages if evaluation report already exists
+    if (evaluation) {
+      toast({
+        title: 'Evaluation Already Generated',
+        description: 'You cannot send new messages after an evaluation report has been generated for this session.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
+    const messageText = question || newMessage.trim();
+    
     if (!messageText || sending) {
       return;
     }
@@ -159,6 +252,7 @@ export default function ChatMessages() {
       id: assistantMessageId,
       role: 'assistant',
       content: '',
+      character: 'Patient', // Default character, will be updated when streaming starts
       reference: null,
       timestamp: new Date().toISOString(),
     };
@@ -222,20 +316,24 @@ export default function ChatMessages() {
                     finalReference = data.data.reference;
                   }
                   
-                  // Update the message content
+                  // Parse character from accumulated answer before cleaning
+                  const { character, cleanedContent } = parseMessageContent(accumulatedAnswer);
+                  
+                  // Update the message content with cleaned content and store character
                   setMessages(prev => prev.map(msg => 
                     msg.id === assistantMessageId
                       ? { 
                           ...msg, 
-                          content: accumulatedAnswer, 
+                          content: cleanedContent, 
+                          character: character, // Store character separately
                           reference: finalReference,
                           timestamp: new Date().toISOString()
                         }
                       : msg
                   ));
                   
-                  // Update typing effect - this will queue new text if already typing
-                  typeMessage(assistantMessageId, accumulatedAnswer);
+                  // Update typing effect with cleaned content - this will queue new text if already typing
+                  typeMessage(assistantMessageId, cleanedContent);
                   
                   // Auto-scroll to bottom while streaming (only if near bottom)
                   const container = messagesContainerRef.current;
@@ -261,10 +359,15 @@ export default function ChatMessages() {
       // Ensure full message is displayed after streaming completes
       // The typing effect will continue until all text is shown
       if (accumulatedAnswer && targetMessagesRef.current[assistantMessageId]) {
+        // Clean the accumulated answer
+        const { cleanedContent } = parseMessageContent(accumulatedAnswer);
+        
         // Let typing effect complete naturally
         // If it's already done, just set the final text
         const currentDisplayed = displayedMessages[assistantMessageId] || '';
-        if (currentDisplayed.length >= accumulatedAnswer.length) {
+        const { cleanedContent: currentCleaned } = parseMessageContent(currentDisplayed);
+        
+        if (currentCleaned.length >= cleanedContent.length) {
           // Already fully displayed
         } else {
           // Typing is still in progress, will complete automatically
@@ -296,14 +399,18 @@ export default function ChatMessages() {
   };
 
   const typeMessage = (messageId, fullText) => {
-    // Update target text (what we eventually want to display)
-    targetMessagesRef.current[messageId] = fullText;
+    // Clean the text first to remove character markers before storing
+    const { cleanedContent } = parseMessageContent(fullText);
     
-    // Get current displayed text
+    // Update target text (what we eventually want to display) - use cleaned content
+    targetMessagesRef.current[messageId] = cleanedContent;
+    
+    // Get current displayed text and clean it
     const currentDisplayed = displayedMessages[messageId] || '';
+    const { cleanedContent: currentCleaned } = parseMessageContent(currentDisplayed);
     
     // If already displayed everything, no need to type
-    if (currentDisplayed.length >= fullText.length) {
+    if (currentCleaned.length >= cleanedContent.length) {
       return;
     }
 
@@ -313,8 +420,8 @@ export default function ChatMessages() {
       return;
     }
 
-    // Start typing from where we left off
-    let currentIndex = currentDisplayed.length;
+    // Start typing from where we left off (using cleaned content)
+    let currentIndex = currentCleaned.length;
     const typingSpeed = 20; // milliseconds per character
 
     typingIntervalsRef.current[messageId] = setInterval(() => {
@@ -323,9 +430,11 @@ export default function ChatMessages() {
       if (currentIndex < targetText.length) {
         currentIndex++;
         const newDisplayed = targetText.substring(0, currentIndex);
+        // Clean the displayed text to ensure no partial markers are shown
+        const { cleanedContent: newCleaned } = parseMessageContent(newDisplayed);
         setDisplayedMessages(prev => ({
           ...prev,
-          [messageId]: newDisplayed
+          [messageId]: newCleaned
         }));
       } else {
         // Check if there's more text to type (stream added more)
@@ -339,7 +448,7 @@ export default function ChatMessages() {
             // If there's more text in target, restart typing
             const latestTarget = targetMessagesRef.current[messageId] || '';
             if (latestTarget.length > currentIndex) {
-              // Restart typing with new content
+              // Restart typing with new content (already cleaned)
               setTimeout(() => {
                 typeMessage(messageId, latestTarget);
               }, 50);
@@ -350,21 +459,69 @@ export default function ChatMessages() {
     }, typingSpeed);
   };
 
-  const formatMessageContent = (content) => {
-    if (!content) return '';
+  // Helper function to detect character and clean content
+  const parseMessageContent = (content) => {
+    if (!content) return { character: 'Patient', cleanedContent: '' };
     
-    // Replace [ID:X] with styled references
-    const parts = content.split(/(\[ID:\d+\])/g);
-    return parts.map((part, index) => {
-      if (part.match(/\[ID:\d+\]/)) {
-        return (
-          <span key={index} className="inline-block px-2 py-0.5 mx-0.5 bg-blue-100 text-blue-700 rounded-md text-xs font-semibold">
-            {part}
-          </span>
-        );
-      }
-      return <span key={index}>{part}</span>;
-    });
+    // Remove [ID:X] patterns first
+    let cleanedContent = content.replace(/\[ID:\d+\]/g, '');
+    
+    // Detect character marker like [character: Patient] or [character: Instructor]
+    // Also handle partial markers during streaming like [character:, [character: P, etc.
+    const characterMatch = cleanedContent.match(/\[character:\s*(\w+)\]/i);
+    let character = 'Patient'; // Default character
+    
+    if (characterMatch) {
+      character = characterMatch[1];
+      // Remove the complete character marker from content
+      cleanedContent = cleanedContent.replace(/\[character:\s*\w+\]/gi, '').trim();
+    } else {
+      // Check for partial character marker during streaming and remove it
+      // This handles cases like "[character:", "[character: P", "[character: Pat", etc.
+      cleanedContent = cleanedContent.replace(/\[character:[^\]]*\]?/gi, '').trim();
+    }
+    
+    return { character, cleanedContent };
+  };
+
+  // Get styling based on character
+  const getCharacterStyle = (character) => {
+    const charLower = character.toLowerCase();
+    
+    if (charLower === 'instructor') {
+      return {
+        bgColor: 'bg-green-50',
+        borderColor: 'border-green-200',
+        textColor: 'text-green-900',
+        avatarBg: 'bg-green-100',
+        avatarIcon: GraduationCap,
+        avatarColor: 'text-green-600'
+      };
+    } else if (charLower === 'patient') {
+      return {
+        bgColor: 'bg-purple-50',
+        borderColor: 'border-purple-100',
+        textColor: 'text-gray-900',
+        avatarBg: 'bg-purple-100',
+        avatarIcon: Sparkles,
+        avatarColor: 'text-purple-600'
+      };
+    } else {
+      // Other characters - use blue theme
+      return {
+        bgColor: 'bg-blue-50',
+        borderColor: 'border-blue-200',
+        textColor: 'text-blue-900',
+        avatarBg: 'bg-blue-100',
+        avatarIcon: UserCircle,
+        avatarColor: 'text-blue-600'
+      };
+    }
+  };
+
+  const formatMessageContent = (content) => {
+    const { cleanedContent } = parseMessageContent(content);
+    return cleanedContent;
   };
 
   if (loading) {
@@ -393,8 +550,35 @@ export default function ChatMessages() {
             <h1 className="text-lg font-semibold text-gray-900">AI Assist</h1>
           </div>
         </div>
-        <div className="text-sm text-gray-500">
-          {chatInfo?.name || sessionInfo?.name || 'Chat Assistant'}
+        <div className="flex items-center space-x-4">
+          <div className="text-sm text-gray-500">
+            {chatInfo?.name || sessionInfo?.name || 'Chat Assistant'}
+          </div>
+          {messages.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGenerateEvaluation}
+              disabled={evaluationLoading}
+            >
+              {evaluationLoading ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : evaluation ? (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  View Evaluation
+                </>
+              ) : (
+                <>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Generate Evaluation
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -440,9 +624,30 @@ export default function ChatMessages() {
               const isStreamingAssistant = message.role === 'assistant' && message.content && sending && index === messages.length - 1;
               
               // Get displayed text for typing effect (only for streaming assistant messages)
-              const displayContent = isStreamingAssistant 
+              let displayContent = isStreamingAssistant 
                 ? (displayedMessages[message.id] || message.content.substring(0, Math.min(50, message.content.length)))
                 : message.content;
+              
+              // For assistant messages, get character from stored message or parse from content
+              let parsedContent = displayContent;
+              let character = 'Patient';
+              
+              if (message.role === 'assistant') {
+                // First try to use stored character (from message.character)
+                if (message.character) {
+                  character = message.character;
+                  parsedContent = displayContent; // Content is already cleaned
+                } else {
+                  // Fallback: parse from content (for backward compatibility or during streaming)
+                  const parsed = parseMessageContent(displayContent);
+                  character = parsed.character;
+                  parsedContent = parsed.cleanedContent;
+                }
+              }
+              
+              // Get character styling for assistant messages
+              const characterStyle = message.role === 'assistant' ? getCharacterStyle(character) : null;
+              const AvatarIcon = characterStyle?.avatarIcon || Sparkles;
               
               return (
                 <div
@@ -455,12 +660,12 @@ export default function ChatMessages() {
                   <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
                     message.role === 'user' 
                       ? 'bg-gray-200' 
-                      : 'bg-gradient-to-br from-blue-500 to-purple-500'
+                      : characterStyle?.avatarBg || 'bg-purple-100'
                   }`}>
                     {message.role === 'user' ? (
                       <User className="h-4 w-4 text-gray-600" />
                     ) : (
-                      <Sparkles className="h-4 w-4 text-white" />
+                      <AvatarIcon className={`h-4 w-4 ${characterStyle?.avatarColor || 'text-purple-600'}`} />
                     )}
                   </div>
                   
@@ -472,7 +677,7 @@ export default function ChatMessages() {
                       className={`rounded-2xl px-4 py-3 shadow-sm ${
                         message.role === 'user'
                           ? 'bg-gray-100 text-gray-900'
-                          : 'bg-purple-50 text-gray-900 border border-purple-100'
+                          : `${characterStyle?.bgColor || 'bg-purple-50'} ${characterStyle?.textColor || 'text-gray-900'} border ${characterStyle?.borderColor || 'border-purple-100'}`
                       }`}
                     >
                       {isEmptyAssistant ? (
@@ -486,7 +691,7 @@ export default function ChatMessages() {
                         </div>
                       ) : (
                         <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                          {formatMessageContent(displayContent)}
+                          {message.role === 'assistant' ? parsedContent : formatMessageContent(displayContent)}
                           {isStreamingAssistant && displayContent.length < message.content.length && (
                             <span className="inline-block w-2 h-4 bg-gray-500 ml-1 animate-pulse">|</span>
                           )}
@@ -525,37 +730,242 @@ export default function ChatMessages() {
             <div ref={messagesEndRef} />
           </div>
         )}
+        
+        {/* Evaluation Report Section */}
+        {evaluation && (
+          <div className="max-w-3xl mx-auto mt-8">
+            <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold flex items-center">
+                  <FileText className="h-5 w-5 mr-2 text-blue-600" />
+                  Evaluation Report
+                </h2>
+                {(() => {
+                  const score = evaluation.overall_score;
+                  let colorClass = '';
+                  if (score < 50) {
+                    colorClass = 'text-red-600';
+                  } else if (score >= 50 && score < 60) {
+                    colorClass = 'text-orange-600';
+                  } else if (score >= 60 && score < 75) {
+                    colorClass = 'text-yellow-600';
+                  } else {
+                    colorClass = 'text-green-600';
+                  }
+                  return (
+                    <div className={`text-2xl font-bold ${colorClass}`}>
+                      {score}/100
+                    </div>
+                  );
+                })()}
+              </div>
+              
+              {/* Category Scores */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                {Object.entries(evaluation.category_scores || {}).map(([category, score]) => {
+                  // Calculate percentage for category score (score is out of 20, so * 5 to get percentage)
+                  const percentage = (score / 20) * 100;
+                  let colorClass = '';
+                  if (percentage < 50) {
+                    colorClass = 'text-red-600';
+                  } else if (percentage >= 50 && percentage < 60) {
+                    colorClass = 'text-orange-600';
+                  } else if (percentage >= 60 && percentage < 75) {
+                    colorClass = 'text-yellow-600';
+                  } else {
+                    colorClass = 'text-green-600';
+                  }
+                  return (
+                    <div key={category} className="text-center p-3 bg-gray-50 rounded-lg">
+                      <div className="text-xs text-gray-600 mb-1 capitalize">
+                        {category.replace('_', ' ')}
+                      </div>
+                      <div className={`text-lg font-semibold ${colorClass}`}>{score}/20</div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* Strengths */}
+              {evaluation.strengths && evaluation.strengths.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="font-semibold text-green-700 mb-2">Strengths</h3>
+                  <ul className="list-disc list-inside space-y-1 text-sm">
+                    {evaluation.strengths.map((strength, idx) => (
+                      <li key={idx} className="text-gray-700">{strength}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {/* Weaknesses */}
+              {evaluation.weaknesses && evaluation.weaknesses.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="font-semibold text-red-700 mb-2">Weaknesses</h3>
+                  <ul className="list-disc list-inside space-y-1 text-sm">
+                    {evaluation.weaknesses.map((weakness, idx) => (
+                      <li key={idx} className="text-gray-700">{weakness}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {/* Recommendations */}
+              {evaluation.recommendations && evaluation.recommendations.length > 0 && (
+                <div>
+                  <h3 className="font-semibold text-blue-700 mb-2">Recommendations</h3>
+                  <ul className="list-disc list-inside space-y-1 text-sm">
+                    {evaluation.recommendations.map((recommendation, idx) => (
+                      <li key={idx} className="text-gray-700">{recommendation}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Evaluation Dialog */}
+      {evaluation && (
+        <Dialog open={evaluationDialogOpen} onOpenChange={setEvaluationDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center justify-between">
+                <span className="flex items-center">
+                  <FileText className="h-5 w-5 mr-2 text-blue-600" />
+                  Evaluation Report
+                </span>
+                {(() => {
+                  const score = evaluation.overall_score;
+                  let colorClass = '';
+                  if (score < 50) {
+                    colorClass = 'text-red-600';
+                  } else if (score >= 50 && score < 60) {
+                    colorClass = 'text-orange-600';
+                  } else if (score >= 60 && score < 75) {
+                    colorClass = 'text-yellow-600';
+                  } else {
+                    colorClass = 'text-green-600';
+                  }
+                  return (
+                    <div className={`text-2xl font-bold ${colorClass}`}>
+                      {score}/100
+                    </div>
+                  );
+                })()}
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-6">
+              {/* Category Scores */}
+              <div>
+                <h3 className="font-semibold mb-3">Category Scores</h3>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  {Object.entries(evaluation.category_scores || {}).map(([category, score]) => {
+                    // Calculate percentage for category score (score is out of 20, so * 5 to get percentage)
+                    const percentage = (score / 20) * 100;
+                    let colorClass = '';
+                    if (percentage < 50) {
+                      colorClass = 'text-red-600';
+                    } else if (percentage >= 50 && percentage < 60) {
+                      colorClass = 'text-orange-600';
+                    } else if (percentage >= 60 && percentage < 75) {
+                      colorClass = 'text-yellow-600';
+                    } else {
+                      colorClass = 'text-green-600';
+                    }
+                    return (
+                      <div key={category} className="text-center p-4 bg-gray-50 rounded-lg border">
+                        <div className="text-xs text-gray-600 mb-2 capitalize">
+                          {category.replace('_', ' ')}
+                        </div>
+                        <div className={`text-2xl font-bold ${colorClass}`}>{score}/20</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              
+              {/* Strengths */}
+              {evaluation.strengths && evaluation.strengths.length > 0 && (
+                <div>
+                  <h3 className="font-semibold text-green-700 mb-2">Strengths</h3>
+                  <ul className="list-disc list-inside space-y-1 pl-4">
+                    {evaluation.strengths.map((strength, idx) => (
+                      <li key={idx} className="text-gray-700">{strength}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {/* Weaknesses */}
+              {evaluation.weaknesses && evaluation.weaknesses.length > 0 && (
+                <div>
+                  <h3 className="font-semibold text-red-700 mb-2">Weaknesses</h3>
+                  <ul className="list-disc list-inside space-y-1 pl-4">
+                    {evaluation.weaknesses.map((weakness, idx) => (
+                      <li key={idx} className="text-gray-700">{weakness}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {/* Recommendations */}
+              {evaluation.recommendations && evaluation.recommendations.length > 0 && (
+                <div>
+                  <h3 className="font-semibold text-blue-700 mb-2">Recommendations</h3>
+                  <ul className="list-disc list-inside space-y-1 pl-4">
+                    {evaluation.recommendations.map((recommendation, idx) => (
+                      <li key={idx} className="text-gray-700">{recommendation}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Input Area */}
       <div className="border-t bg-white p-4 shadow-lg">
-        <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
-          <div className="flex items-center space-x-3">
-            <div className="flex-1 relative">
-              <Input
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Ask me anything"
-                className="w-full rounded-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 px-4 py-3 pr-12"
-                disabled={sending}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSubmit(e);
-                  }
-                }}
-              />
-              <Button
-                type="submit"
-                disabled={!newMessage.trim() || sending}
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-blue-600 hover:bg-blue-700 p-0"
-                size="icon"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
+        {evaluation ? (
+          <div className="max-w-3xl mx-auto">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+              <p className="text-sm text-yellow-800">
+                <span className="font-semibold">Evaluation report has been generated.</span> No new messages can be sent to this session.
+              </p>
             </div>
           </div>
-        </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
+            <div className="flex items-center space-x-3">
+              <div className="flex-1 relative">
+                <Input
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Ask me anything"
+                  className="w-full rounded-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 px-4 py-3 pr-12"
+                  disabled={sending}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmit(e);
+                    }
+                  }}
+                />
+                <Button
+                  type="submit"
+                  disabled={!newMessage.trim() || sending}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-blue-600 hover:bg-blue-700 p-0"
+                  size="icon"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

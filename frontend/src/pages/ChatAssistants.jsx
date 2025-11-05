@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { useToast } from '../components/ui/use-toast.jsx';
-import { Plus, RefreshCw, Edit, Trash2, MessageSquare } from 'lucide-react';
+import { Plus, RefreshCw, Edit, Trash2, MessageSquare, UserCheck } from 'lucide-react';
 import { Textarea } from '../components/ui/textarea';
 import Loading from '../components/Loading';
 
@@ -351,11 +351,11 @@ export default function ChatAssistants() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center py-2">
         <div>
-          <h1 className="text-3xl font-bold">Chat Assistants</h1>
-          <p className="text-muted-foreground mt-2">Manage RAGFlow chat assistants</p>
+          <h1 className="text-2xl font-bold">Chat Assistants</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Manage chat assistants</p>
         </div>
         <div className="flex space-x-2">
           <Button variant="outline" onClick={fetchChats}>
@@ -449,6 +449,14 @@ export default function ChatAssistants() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigate(`/ragflow/chats/${chat.id}/assignments`)}
+                          title="Manage Assignments"
+                        >
+                          <UserCheck className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"

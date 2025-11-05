@@ -262,16 +262,15 @@ export default function DatasetDocuments() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" onClick={() => navigate('/ragflow')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Datasets
+    <div className="space-y-6">
+      <div className="flex justify-between items-center py-2">
+        <div className="flex items-center space-x-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/ragflow')}>
+            <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">Documents</h1>
-            <p className="text-muted-foreground mt-2">
+            <h1 className="text-2xl font-bold">Documents</h1>
+            <p className="text-muted-foreground mt-1 text-sm">
               Manage documents in this dataset ({total} total)
             </p>
           </div>

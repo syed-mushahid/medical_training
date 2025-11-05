@@ -1,6 +1,9 @@
 from flask import Blueprint, request, jsonify
-from utils import admin_or_instructor_required, get_current_user
+from flask_jwt_extended import jwt_required
+from utils import admin_or_instructor_required, student_required, get_current_user
+from models import db
 from config import Config
+from sqlalchemy import text
 import requests
 
 ragflow_chats_bp = Blueprint('ragflow_chats', __name__)
@@ -19,8 +22,8 @@ def get_ragflow_headers(api_key=None):
         'Authorization': f'Bearer {key}'
     }
 
-def get_api_key_for_user(current_user):
-    """Get API key for current user"""
+def get_api_key_for_user(current_user, chat_id=None):
+    """Get API key for current user. For students, try to use the instructor's key who assigned the chat."""
     if current_user.role == 'instructor' and current_user.instructor:
         api_key = current_user.instructor.ragflow_api_key
         if not api_key:
@@ -28,8 +31,66 @@ def get_api_key_for_user(current_user):
         return api_key
     elif current_user.role == 'admin':
         return RAGFLOW_API_KEY
+    elif current_user.role == 'student':
+        # For students, try to get the instructor's API key who assigned this chat
+        if chat_id and current_user.student:
+            try:
+                # Check direct assignment
+                result = db.session.execute(
+                    text('''
+                        SELECT instructor_id FROM chat_student_association
+                        WHERE chat_id = :chat_id AND student_id = :student_id
+                    '''),
+                    {'chat_id': chat_id, 'student_id': current_user.student.id}
+                ).fetchone()
+                
+                if not result:
+                    # Check group assignment
+                    result = db.session.execute(
+                        text('''
+                            SELECT cga.instructor_id
+                            FROM chat_student_group_association cga
+                            INNER JOIN student_group_association sga ON cga.student_group_id = sga.group_id
+                            WHERE cga.chat_id = :chat_id AND sga.student_id = :student_id
+                        '''),
+                        {'chat_id': chat_id, 'student_id': current_user.student.id}
+                    ).fetchone()
+                
+                if result and result[0]:
+                    from models import Instructor
+                    instructor = Instructor.query.get(result[0])
+                    if instructor and instructor.ragflow_api_key:
+                        print(f"[get_api_key_for_user] Using instructor {result[0]}'s API key for student")
+                        return instructor.ragflow_api_key
+            except Exception as e:
+                print(f"[get_api_key_for_user] Error finding instructor API key: {e}")
+        
+        # Fallback to global API key
+        return RAGFLOW_API_KEY
     else:
         raise ValueError('RAGFlow API key is not configured')
+
+def check_student_chat_access(chat_id, student_id):
+    """Check if a student has access to a chat (direct or via group)"""
+    # Check direct assignment
+    result = db.session.execute(
+        text('SELECT 1 FROM chat_student_association WHERE chat_id = :chat_id AND student_id = :student_id'),
+        {'chat_id': chat_id, 'student_id': student_id}
+    ).fetchone()
+    if result:
+        return True
+    
+    # Check group assignment
+    result = db.session.execute(
+        text('''
+            SELECT 1 FROM chat_student_group_association cga
+            INNER JOIN student_group_association sga ON cga.student_group_id = sga.group_id
+            WHERE cga.chat_id = :chat_id AND sga.student_id = :student_id
+        '''),
+        {'chat_id': chat_id, 'student_id': student_id}
+    ).fetchone()
+    
+    return result is not None
 
 @ragflow_chats_bp.route('/chats', methods=['POST'])
 @admin_or_instructor_required
@@ -289,12 +350,11 @@ def update_chat(chat_id):
         return jsonify({'error': f'An error occurred: {str(e)}'}), 500
 
 @ragflow_chats_bp.route('/chats', methods=['GET'])
-@admin_or_instructor_required
+@jwt_required()
 def list_chats():
     """List chat assistants from RAGFlow"""
     try:
         current_user = get_current_user()
-        api_key_to_use = get_api_key_for_user(current_user)
         
         # Get query parameters
         page = request.args.get('page', '1')
@@ -304,7 +364,113 @@ def list_chats():
         name = request.args.get('name')
         chat_id = request.args.get('id')
         
-        # Build query string
+        # For students, check if they have access to the requested chat
+        if current_user.role == 'student':
+            if not current_user.student:
+                return jsonify({'error': 'Student profile not found'}), 404
+            
+            # If a specific chat_id is requested, verify access
+            if chat_id:
+                if not check_student_chat_access(chat_id, current_user.student.id):
+                    return jsonify({'error': 'You do not have access to this chat assistant'}), 403
+                # Get API key for this specific chat
+                api_key_to_use = get_api_key_for_user(current_user, chat_id)
+            else:
+                # If no specific chat_id, get all assigned chats
+                # Get directly assigned chats
+                result = db.session.execute(
+                    text('''
+                        SELECT DISTINCT csa.chat_id, csa.instructor_id
+                        FROM chat_student_association csa
+                        WHERE csa.student_id = :student_id
+                    '''),
+                    {'student_id': current_user.student.id}
+                )
+                direct_assignments = [(row[0], row[1]) for row in result]
+                
+                # Get chats assigned through groups
+                result = db.session.execute(
+                    text('''
+                        SELECT DISTINCT cga.chat_id, cga.instructor_id
+                        FROM chat_student_group_association cga
+                        INNER JOIN student_group_association sga ON cga.student_group_id = sga.group_id
+                        WHERE sga.student_id = :student_id
+                    '''),
+                    {'student_id': current_user.student.id}
+                )
+                group_assignments = [(row[0], row[1]) for row in result]
+                
+                # Combine and deduplicate
+                all_chat_ids = list(set([row[0] for row in direct_assignments + group_assignments]))
+                
+                if not all_chat_ids:
+                    return jsonify({
+                        'success': True,
+                        'chats': []
+                    }), 200
+                
+                # Use the first chat's instructor API key (or global as fallback)
+                chat_instructor_map = {}
+                for cid, iid in direct_assignments + group_assignments:
+                    if cid not in chat_instructor_map:
+                        chat_instructor_map[cid] = iid
+                
+                instructor_id = None
+                for cid in all_chat_ids:
+                    if cid in chat_instructor_map and chat_instructor_map[cid]:
+                        instructor_id = chat_instructor_map[cid]
+                        break
+                
+                if instructor_id:
+                    from models import Instructor
+                    instructor = Instructor.query.get(instructor_id)
+                    if instructor and instructor.ragflow_api_key:
+                        api_key_to_use = instructor.ragflow_api_key
+                    else:
+                        api_key_to_use = RAGFLOW_API_KEY
+                else:
+                    api_key_to_use = RAGFLOW_API_KEY
+                
+                # Fetch all assigned chats and filter
+                params = {
+                    'page': '1',
+                    'page_size': '1000',  # Get all to filter
+                    'orderby': orderby,
+                    'desc': desc
+                }
+                if name:
+                    params['name'] = name
+                
+                response = requests.get(
+                    f'{RAGFLOW_BASE_URL}/api/v1/chats',
+                    headers=get_ragflow_headers(api_key_to_use),
+                    params=params,
+                    timeout=30
+                )
+                
+                response_data = response.json()
+                
+                if response.status_code == 200 and response_data.get('code') == 0:
+                    all_chats = response_data.get('data', [])
+                    # Filter to only assigned chats
+                    filtered_chats = [chat for chat in all_chats if chat.get('id') in all_chat_ids]
+                    return jsonify({
+                        'success': True,
+                        'chats': filtered_chats
+                    }), 200
+                else:
+                    error_message = response_data.get('message', 'Failed to fetch chat assistants')
+                    return jsonify({
+                        'error': error_message,
+                        'code': response_data.get('code', -1)
+                    }), response.status_code if response.status_code != 200 else 400
+        elif current_user.role not in ['admin', 'instructor']:
+            return jsonify({'error': 'Access denied'}), 403
+        else:
+            # Admin or instructor - use their API key
+            api_key_to_use = get_api_key_for_user(current_user)
+        
+        # Build query string for admin/instructor
         params = {
             'page': page,
             'page_size': page_size,
@@ -383,6 +549,49 @@ def delete_chats():
         response_data = response.json()
         
         if response.status_code == 200 and response_data.get('code') == 0:
+            # Clean up assignments for deleted chats
+            if ids:
+                for chat_id in ids:
+                    try:
+                        # Delete student assignments
+                        db.session.execute(
+                            text('DELETE FROM chat_student_association WHERE chat_id = :chat_id'),
+                            {'chat_id': chat_id}
+                        )
+                        # Delete group assignments
+                        db.session.execute(
+                            text('DELETE FROM chat_student_group_association WHERE chat_id = :chat_id'),
+                            {'chat_id': chat_id}
+                        )
+                        # Delete student session tracking
+                        db.session.execute(
+                            text('DELETE FROM student_chat_sessions WHERE chat_id = :chat_id'),
+                            {'chat_id': chat_id}
+                        )
+                        # Delete evaluation reports for this chat
+                        db.session.execute(
+                            text('DELETE FROM evaluation_reports WHERE chat_id = :chat_id'),
+                            {'chat_id': chat_id}
+                        )
+                        print(f"[delete_chats] Cleaned up assignments and sessions for deleted chat {chat_id}")
+                    except Exception as e:
+                        print(f"[delete_chats] Error cleaning up assignments for chat {chat_id}: {e}")
+                        # Continue with other chats even if one fails
+                
+                db.session.commit()
+            elif ids is None:
+                # Delete all chats - clean up all assignments
+                try:
+                    db.session.execute(text('DELETE FROM chat_student_association'))
+                    db.session.execute(text('DELETE FROM chat_student_group_association'))
+                    db.session.execute(text('DELETE FROM student_chat_sessions'))
+                    db.session.execute(text('DELETE FROM evaluation_reports'))
+                    db.session.commit()
+                    print(f"[delete_chats] Cleaned up all chat assignments")
+                except Exception as e:
+                    print(f"[delete_chats] Error cleaning up all assignments: {e}")
+                    db.session.rollback()
+            
             return jsonify({
                 'success': True,
                 'message': 'Chat assistant(s) deleted successfully'

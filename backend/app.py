@@ -13,6 +13,11 @@ from routes.ragflow_documents import ragflow_documents_bp
 from routes.ragflow_chats import ragflow_chats_bp
 from routes.ragflow_sessions import ragflow_sessions_bp
 from routes.ragflow_completions import ragflow_completions_bp
+from routes.chat_assignments import chat_assignments_bp
+from routes.evaluations import evaluations_bp
+from routes.student_profile import student_profile_bp
+from routes.instructor_profile import instructor_profile_bp
+from routes.admin_profile import admin_profile_bp
 from seed import seed_admin
 
 def create_app():
@@ -60,6 +65,11 @@ def create_app():
     app.register_blueprint(ragflow_chats_bp, url_prefix='/api/ragflow')
     app.register_blueprint(ragflow_sessions_bp, url_prefix='/api/ragflow')
     app.register_blueprint(ragflow_completions_bp, url_prefix='/api/ragflow')
+    app.register_blueprint(chat_assignments_bp, url_prefix='/api')
+    app.register_blueprint(evaluations_bp, url_prefix='/api')
+    app.register_blueprint(student_profile_bp, url_prefix='/api')
+    app.register_blueprint(instructor_profile_bp, url_prefix='/api')
+    app.register_blueprint(admin_profile_bp, url_prefix='/api')
     
     # Error handler for bad requests
     @app.errorhandler(BadRequest)
@@ -140,6 +150,127 @@ def create_app():
                 print("RAGFlow API key column added successfully!")
         except Exception as e:
             print(f"Note: Could not automatically add ragflow_api_key column (may already exist): {e}")
+            db.session.rollback()
+
+        # Create chat assignment tables if they don't exist
+        try:
+            from sqlalchemy import text, inspect
+            inspector = inspect(db.engine)
+            existing_tables = inspector.get_table_names()
+            
+            if 'chat_student_association' not in existing_tables:
+                print("Creating chat_student_association table...")
+                db.session.execute(text('''
+                    CREATE TABLE chat_student_association (
+                        chat_id VARCHAR(255) NOT NULL,
+                        student_id INT NOT NULL,
+                        instructor_id INT NULL,
+                        assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (chat_id, student_id),
+                        FOREIGN KEY (student_id) REFERENCES student(id) ON DELETE CASCADE,
+                        FOREIGN KEY (instructor_id) REFERENCES instructor(id) ON DELETE SET NULL
+                    )
+                '''))
+                db.session.commit()
+                print("chat_student_association table created successfully!")
+            else:
+                print("chat_student_association table already exists")
+                # Add instructor_id column if it doesn't exist
+                try:
+                    inspector = inspect(db.engine)
+                    columns = [col['name'] for col in inspector.get_columns('chat_student_association')]
+                    if 'instructor_id' not in columns:
+                        print("Adding instructor_id column to chat_student_association table...")
+                        db.session.execute(text('''
+                            ALTER TABLE chat_student_association
+                            ADD COLUMN instructor_id INT NULL,
+                            ADD FOREIGN KEY (instructor_id) REFERENCES instructor(id) ON DELETE SET NULL
+                        '''))
+                        db.session.commit()
+                        print("instructor_id column added to chat_student_association!")
+                except Exception as e:
+                    print(f"Note: Could not add instructor_id column (may already exist): {e}")
+                    db.session.rollback()
+            
+            if 'chat_student_group_association' not in existing_tables:
+                print("Creating chat_student_group_association table...")
+                db.session.execute(text('''
+                    CREATE TABLE chat_student_group_association (
+                        chat_id VARCHAR(255) NOT NULL,
+                        student_group_id INT NOT NULL,
+                        instructor_id INT NULL,
+                        assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (chat_id, student_group_id),
+                        FOREIGN KEY (student_group_id) REFERENCES student_group(id) ON DELETE CASCADE,
+                        FOREIGN KEY (instructor_id) REFERENCES instructor(id) ON DELETE SET NULL
+                    )
+                '''))
+                db.session.commit()
+                print("chat_student_group_association table created successfully!")
+            else:
+                print("chat_student_group_association table already exists")
+                # Add instructor_id column if it doesn't exist
+                try:
+                    inspector = inspect(db.engine)
+                    columns = [col['name'] for col in inspector.get_columns('chat_student_group_association')]
+                    if 'instructor_id' not in columns:
+                        print("Adding instructor_id column to chat_student_group_association table...")
+                        db.session.execute(text('''
+                            ALTER TABLE chat_student_group_association
+                            ADD COLUMN instructor_id INT NULL,
+                            ADD FOREIGN KEY (instructor_id) REFERENCES instructor(id) ON DELETE SET NULL
+                        '''))
+                        db.session.commit()
+                        print("instructor_id column added to chat_student_group_association!")
+                except Exception as e:
+                    print(f"Note: Could not add instructor_id column (may already exist): {e}")
+                    db.session.rollback()
+            
+            # Create student_chat_sessions table to track which sessions belong to which students
+            if 'student_chat_sessions' not in existing_tables:
+                print("Creating student_chat_sessions table...")
+                db.session.execute(text('''
+                    CREATE TABLE student_chat_sessions (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        student_id INT NOT NULL,
+                        chat_id VARCHAR(255) NOT NULL,
+                        session_id VARCHAR(255) NOT NULL,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE KEY unique_student_session (student_id, chat_id, session_id),
+                        FOREIGN KEY (student_id) REFERENCES student(id) ON DELETE CASCADE
+                    )
+                '''))
+                db.session.commit()
+                print("student_chat_sessions table created successfully!")
+            else:
+                print("student_chat_sessions table already exists")
+            
+            # Create evaluation_reports table to store evaluation reports for sessions
+            if 'evaluation_reports' not in existing_tables:
+                print("Creating evaluation_reports table...")
+                db.session.execute(text('''
+                    CREATE TABLE evaluation_reports (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        student_id INT NOT NULL,
+                        chat_id VARCHAR(255) NOT NULL,
+                        session_id VARCHAR(255) NOT NULL,
+                        overall_score INT NOT NULL,
+                        strengths TEXT,
+                        weaknesses TEXT,
+                        recommendations TEXT,
+                        category_scores JSON,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        UNIQUE KEY unique_session_evaluation (student_id, chat_id, session_id),
+                        FOREIGN KEY (student_id) REFERENCES student(id) ON DELETE CASCADE
+                    )
+                '''))
+                db.session.commit()
+                print("evaluation_reports table created successfully!")
+            else:
+                print("evaluation_reports table already exists")
+        except Exception as e:
+            print(f"Note: Could not create chat assignment tables (may already exist): {e}")
             db.session.rollback()
         
         seed_admin()

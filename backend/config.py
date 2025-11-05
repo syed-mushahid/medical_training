@@ -10,4 +10,5 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRES = False  # Set to False for development, configure in production
     RAGFLOW_BASE_URL = os.getenv('RAGFLOW_BASE_URL', 'http://localhost:80')
     RAGFLOW_API_KEY = os.getenv('RAGFLOW_API_KEY', '')
+    OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 

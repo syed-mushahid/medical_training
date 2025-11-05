@@ -87,3 +87,20 @@ def get_current_instructor():
         return user.instructor
     return None
 
+def student_required(f):
+    """Decorator to require student role"""
+    @wraps(f)
+    @jwt_required()
+    def decorated_function(*args, **kwargs):
+        try:
+            current_user_id = get_jwt_identity()
+            current_user_id = int(current_user_id)
+            user = User.query.get(current_user_id)
+            
+            if not user or user.role != 'student':
+                return jsonify({'error': 'Student access required'}), 403
+            return f(*args, **kwargs)
+        except Exception as e:
+            return jsonify({'error': f'Authentication error: {str(e)}'}), 401
+    return decorated_function
+

@@ -6,6 +6,10 @@ import Instructors from './pages/Instructors';
 import Students from './pages/Students';
 import StudentGroups from './pages/StudentGroups';
 import StudentDashboard from './pages/StudentDashboard';
+import StudentMyGroups from './pages/StudentMyGroups';
+import StudentProfile from './pages/StudentProfile';
+import InstructorProfile from './pages/InstructorProfile';
+import AdminProfile from './pages/AdminProfile';
 import RAGFlow from './pages/RAGFlow';
 import DatasetDocuments from './pages/DatasetDocuments';
 import DocumentChunks from './pages/DocumentChunks';
@@ -13,6 +17,8 @@ import Retrieval from './pages/Retrieval';
 import ChatAssistants from './pages/ChatAssistants';
 import ChatSessions from './pages/ChatSessions';
 import ChatMessages from './pages/ChatMessages';
+import ChatAssignments from './pages/ChatAssignments';
+import StudentChats from './pages/StudentChats';
 import Layout from './components/Layout';
 import { Toaster } from './components/ui/use-toast.jsx';
 import Loading from './components/Loading';
@@ -149,6 +155,86 @@ function AppRoutes() {
         path="/ragflow/chats/:chatId/sessions/:sessionId/messages"
         element={
           <ProtectedRoute allowedRoles={['admin', 'instructor']}>
+            <Layout>
+              <ChatMessages />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ragflow/chats/:chatId/assignments"
+        element={
+          <ProtectedRoute allowedRoles={['admin', 'instructor']}>
+            <Layout>
+              <ChatAssignments />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/chats"
+        element={
+          <ProtectedRoute allowedRoles={['student']}>
+            <Layout>
+              <StudentChats />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/chats/:chatId"
+        element={
+          <ProtectedRoute allowedRoles={['student']}>
+            <Layout>
+              <StudentChats />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/my-groups"
+        element={
+          <ProtectedRoute allowedRoles={['student']}>
+            <Layout>
+              <StudentMyGroups />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/profile"
+        element={
+          <ProtectedRoute allowedRoles={['student']}>
+            <Layout>
+              <StudentProfile />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/instructor/profile"
+        element={
+          <ProtectedRoute allowedRoles={['instructor']}>
+            <Layout>
+              <InstructorProfile />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/profile"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <Layout>
+              <AdminProfile />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/chats/:chatId/sessions/:sessionId/messages"
+        element={
+          <ProtectedRoute allowedRoles={['student']}>
             <Layout>
               <ChatMessages />
             </Layout>

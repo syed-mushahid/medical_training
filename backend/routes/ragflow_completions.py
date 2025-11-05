@@ -1,6 +1,9 @@
 from flask import Blueprint, request, Response, jsonify, stream_with_context
-from utils import admin_or_instructor_required, get_current_user
+from flask_jwt_extended import jwt_required
+from utils import admin_or_instructor_required, student_required, get_current_user
+from models import db
 from config import Config
+from sqlalchemy import text
 import requests
 import json
 
@@ -20,8 +23,8 @@ def get_ragflow_headers(api_key=None):
         'Authorization': f'Bearer {key}'
     }
 
-def get_api_key_for_user(current_user):
-    """Get API key for current user"""
+def get_api_key_for_user(current_user, chat_id=None):
+    """Get API key for current user. For students, try to use the instructor's key who assigned the chat."""
     if current_user.role == 'instructor' and current_user.instructor:
         api_key = current_user.instructor.ragflow_api_key
         if not api_key:
@@ -29,22 +32,104 @@ def get_api_key_for_user(current_user):
         return api_key
     elif current_user.role == 'admin':
         return RAGFLOW_API_KEY
+    elif current_user.role == 'student':
+        # For students, try to get the instructor's API key who assigned this chat
+        if chat_id and current_user.student:
+            try:
+                # Check direct assignment
+                result = db.session.execute(
+                    text('''
+                        SELECT instructor_id FROM chat_student_association
+                        WHERE chat_id = :chat_id AND student_id = :student_id
+                    '''),
+                    {'chat_id': chat_id, 'student_id': current_user.student.id}
+                ).fetchone()
+                
+                if not result:
+                    # Check group assignment
+                    result = db.session.execute(
+                        text('''
+                            SELECT cga.instructor_id
+                            FROM chat_student_group_association cga
+                            INNER JOIN student_group_association sga ON cga.student_group_id = sga.group_id
+                            WHERE cga.chat_id = :chat_id AND sga.student_id = :student_id
+                        '''),
+                        {'chat_id': chat_id, 'student_id': current_user.student.id}
+                    ).fetchone()
+                
+                if result and result[0]:
+                    from models import Instructor
+                    instructor = Instructor.query.get(result[0])
+                    if instructor and instructor.ragflow_api_key:
+                        print(f"[get_api_key_for_user] Using instructor {result[0]}'s API key for student")
+                        return instructor.ragflow_api_key
+            except Exception as e:
+                print(f"[get_api_key_for_user] Error finding instructor API key: {e}")
+        
+        # Fallback to global API key
+        return RAGFLOW_API_KEY
     else:
         raise ValueError('RAGFlow API key is not configured')
 
 @ragflow_completions_bp.route('/chats/<chat_id>/completions', methods=['POST'])
-@admin_or_instructor_required
+@jwt_required()
 def converse_with_chat(chat_id):
     """Converse with a chat assistant"""
     try:
         current_user = get_current_user()
-        api_key_to_use = get_api_key_for_user(current_user)
+        
+        # Check access for students
+        if current_user.role == 'student':
+            if not current_user.student:
+                return jsonify({'error': 'Student profile not found'}), 404
+            
+            # Check if student has access to this chat
+            student_id = current_user.student.id
+            # Check direct assignment
+            result = db.session.execute(
+                text('SELECT 1 FROM chat_student_association WHERE chat_id = :chat_id AND student_id = :student_id'),
+                {'chat_id': chat_id, 'student_id': student_id}
+            ).fetchone()
+            if not result:
+                # Check group assignment
+                result = db.session.execute(
+                    text('''
+                        SELECT 1 FROM chat_student_group_association cga
+                        INNER JOIN student_group_association sga ON cga.student_group_id = sga.group_id
+                        WHERE cga.chat_id = :chat_id AND sga.student_id = :student_id
+                    '''),
+                    {'chat_id': chat_id, 'student_id': student_id}
+                ).fetchone()
+                if not result:
+                    return jsonify({'error': 'You do not have access to this chat assistant'}), 403
+        elif current_user.role not in ['admin', 'instructor']:
+            return jsonify({'error': 'Access denied'}), 403
+        
+        api_key_to_use = get_api_key_for_user(current_user, chat_id)
         
         data = request.get_json() or {}
         
         # Validate required fields
         if 'question' not in data or not data.get('question'):
             return jsonify({'error': 'question is required'}), 400
+        
+        # For students, validate they own the session if provided
+        session_id = data.get('session_id')
+        if current_user.role == 'student' and session_id and current_user.student:
+            # Verify student owns this session
+            result = db.session.execute(
+                text('''
+                    SELECT 1 FROM student_chat_sessions
+                    WHERE student_id = :student_id AND chat_id = :chat_id AND session_id = :session_id
+                '''),
+                {
+                    'student_id': current_user.student.id,
+                    'chat_id': chat_id,
+                    'session_id': session_id
+                }
+            ).fetchone()
+            if not result:
+                return jsonify({'error': 'You do not have access to this session'}), 403
         
         # Prepare request body
         request_body = {
@@ -57,8 +142,8 @@ def converse_with_chat(chat_id):
         else:
             request_body['stream'] = True  # Default to streaming
         
-        if 'session_id' in data and data.get('session_id'):
-            request_body['session_id'] = data['session_id']
+        if session_id:
+            request_body['session_id'] = session_id
         
         if 'user_id' in data and data.get('user_id'):
             request_body['user_id'] = data['user_id']

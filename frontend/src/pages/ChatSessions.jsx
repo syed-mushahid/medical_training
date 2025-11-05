@@ -267,18 +267,18 @@ export default function ChatSessions() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <div>
-          <div className="flex items-center space-x-2 mb-2">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/ragflow/chats')}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-3xl font-bold">Chat Sessions</h1>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center py-2">
+        <div className="flex items-center space-x-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/ragflow/chats')}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">Chat Sessions</h1>
+            <p className="text-muted-foreground mt-1 text-sm">
+              {chatInfo ? `Managing sessions for: ${chatInfo.name}` : `Chat ID: ${chatId}`}
+            </p>
           </div>
-          <p className="text-muted-foreground">
-            {chatInfo ? `Managing sessions for: ${chatInfo.name}` : `Chat ID: ${chatId}`}
-          </p>
         </div>
         <div className="flex space-x-2">
           <Button variant="outline" onClick={fetchSessions}>
@@ -315,6 +315,8 @@ export default function ChatSessions() {
                   />
                 </TableHead>
                 <TableHead>Name</TableHead>
+                <TableHead>Created By</TableHead>
+                <TableHead>Evaluation Score</TableHead>
                 <TableHead>Messages Count</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Updated</TableHead>
@@ -324,8 +326,8 @@ export default function ChatSessions() {
             <TableBody>
               {sessions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">
-                    No sessions found
+                  <TableCell colSpan={8} className="text-center">
+No sessions found
                   </TableCell>
                 </TableRow>
               ) : (
@@ -340,6 +342,48 @@ export default function ChatSessions() {
                       />
                     </TableCell>
                     <TableCell className="font-medium">{session.name || '-'}</TableCell>
+                    <TableCell>
+                      {session.created_by_student ? (
+                        <div className="flex flex-col">
+                          <span className="font-medium">
+                            {session.created_by_student.first_name} {session.created_by_student.last_name}
+                          </span>
+                          {session.created_by_student.student_id_number && (
+                            <span className="text-xs text-muted-foreground">
+                              ID: {session.created_by_student.student_id_number}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {session.evaluation_score !== null && session.evaluation_score !== undefined ? (
+                        <div className="flex items-center space-x-2">
+                          {(() => {
+                            const score = session.evaluation_score;
+                            let colorClass = '';
+                            if (score < 50) {
+                              colorClass = 'text-red-600';
+                            } else if (score >= 50 && score < 60) {
+                              colorClass = 'text-orange-600';
+                            } else if (score >= 60 && score < 75) {
+                              colorClass = 'text-yellow-600';
+                            } else {
+                              colorClass = 'text-green-600';
+                            }
+                            return (
+                              <span className={`font-semibold ${colorClass}`}>
+                                {score}/100
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       {session.messages ? session.messages.length : 0}
                     </TableCell>
