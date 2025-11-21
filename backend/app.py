@@ -1,3 +1,5 @@
+import os
+import sys
 from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
@@ -45,11 +47,12 @@ def create_app():
     def missing_token_callback(error):
         print(f"\n[JWT] Missing token - Error: {str(error)}")
         return jsonify({'error': 'Authorization header is missing'}), 401
-    # Allow CORS from all origins (for development)
-    # In production, you should restrict this to specific origins
+    # CORS configuration
+    # In production, restrict origins to your domain
+    cors_origins = os.getenv('CORS_ORIGINS', '*').split(',')
     CORS(app, 
          resources={r"/api/*": {
-             "origins": "*", 
+             "origins": cors_origins, 
              "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
              "allow_headers": ["Content-Type", "Authorization"],
              "supports_credentials": True
@@ -278,6 +281,29 @@ def create_app():
     return app
 
 if __name__ == '__main__':
+    # Initialize database if it doesn't exist
+    from init_db import create_database_if_not_exists
+    success, was_new = create_database_if_not_exists()
+    if not success:
+        print("[App] Failed to initialize database. Exiting...")
+        sys.exit(1)
+    
     app = create_app()
-    app.run(debug=True, port=5000)
+    
+    # If database was newly created, run migrations after tables are created
+    if was_new:
+        print("\n[App] New database detected. Running migration scripts...")
+        try:
+            from run_migrations import run_migrations
+            # Run migrations after tables are created (they're created in create_app)
+            # Pass the app instance so migrations can use app context
+            run_migrations(app)
+        except Exception as e:
+            print(f"[App] Warning: Could not run migrations: {e}")
+            import traceback
+            traceback.print_exc()
+            print("[App] Continuing startup - migrations may need to be run manually")
+    
+    port = int(os.getenv('FLASK_PORT', '5000'))
+    app.run(host='0.0.0.0', port=port)
 

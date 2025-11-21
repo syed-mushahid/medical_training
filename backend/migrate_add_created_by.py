@@ -2,13 +2,11 @@
 Migration script to add created_by_instructor_id column to student_group table
 Run this once to update your database schema
 """
-from app import create_app
 from models import db
 from sqlalchemy import text
 
-app = create_app()
-
-with app.app_context():
+def run_migration():
+    """Run the migration to add created_by_instructor_id column."""
     try:
         # Check if column already exists
         result = db.session.execute(text(
@@ -19,7 +17,7 @@ with app.app_context():
         ))
         
         if result.scalar() == 0:
-            print("Adding created_by_instructor_id column to student_group table...")
+            print("[Migration] Adding created_by_instructor_id column to student_group table...")
             db.session.execute(text(
                 "ALTER TABLE student_group "
                 "ADD COLUMN created_by_instructor_id INT NULL, "
@@ -28,13 +26,24 @@ with app.app_context():
                 "ON DELETE SET NULL"
             ))
             db.session.commit()
-            print("Column added successfully!")
+            print("[Migration] Column added successfully!")
+            return True
         else:
-            print("Column already exists, skipping migration.")
+            print("[Migration] Column already exists, skipping migration.")
+            return True
     except Exception as e:
-        print(f"Error during migration: {str(e)}")
+        print(f"[Migration] Error during migration: {str(e)}")
         db.session.rollback()
-        print("Migration failed. Please run this manually in MySQL:")
+        print("[Migration] Migration failed. Please run this manually in MySQL:")
         print("ALTER TABLE student_group ADD COLUMN created_by_instructor_id INT NULL;")
         print("ALTER TABLE student_group ADD CONSTRAINT fk_created_by_instructor FOREIGN KEY (created_by_instructor_id) REFERENCES instructor(id) ON DELETE SET NULL;")
+        return False
+
+# Allow running as standalone script
+if __name__ == '__main__':
+    from app import create_app
+    app = create_app()
+    with app.app_context():
+        success = run_migration()
+        exit(0 if success else 1)
 

@@ -1,0 +1,17 @@
+# Production overrides for docker-compose.yml
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  backend:
+    # Remove development volume mount - use code baked into image
+    volumes: []
+    environment:
+      FLASK_ENV: production
+      FLASK_DEBUG: "false"
+    # Remove development command override
+    command: python app.py
+
+  frontend:
+    # Frontend is already production-ready (static files served by nginx)
+    # No changes needed
+

@@ -531,7 +531,7 @@ export default function ChatMessages() {
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-120px)] bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50 w-full fixed inset-0 left-0 right-0 top-0 bottom-0" style={{ zIndex: 10 }}>
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-white shadow-sm">
         <div className="flex items-center space-x-3">
@@ -547,13 +547,16 @@ export default function ChatMessages() {
             <div className="relative">
               <Sparkles className="h-5 w-5 text-blue-600" />
             </div>
-            <h1 className="text-lg font-semibold text-gray-900">AI Assist</h1>
+            <h1 className="text-lg font-semibold text-gray-900">
+              {sessionInfo?.name 
+                ? (sessionInfo.name.length > 20 
+                    ? sessionInfo.name.substring(0, 20) + '...' 
+                    : sessionInfo.name)
+                : chatInfo?.name || 'Chat Assistant'}
+            </h1>
           </div>
         </div>
         <div className="flex items-center space-x-4">
-          <div className="text-sm text-gray-500">
-            {chatInfo?.name || sessionInfo?.name || 'Chat Assistant'}
-          </div>
           {messages.length > 0 && (
             <Button
               variant="outline"
@@ -585,12 +588,12 @@ export default function ChatMessages() {
       {/* Messages Area */}
       <div 
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-6"
+        className="flex-1 overflow-y-auto p-6 w-full"
         style={{ scrollBehavior: 'auto' }}
       >
         {!hasMessages ? (
           /* Initial State - Empty */
-          <div className="max-w-2xl mx-auto flex flex-col items-center justify-center h-full">
+          <div className="w-full max-w-full px-4 flex flex-col items-center justify-center h-full">
             {/* Large Icon */}
             <div className="relative mb-6">
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
@@ -618,7 +621,7 @@ export default function ChatMessages() {
           </div>
         ) : (
           /* Conversation State */
-          <div className="max-w-3xl mx-auto space-y-6">
+          <div className="w-full max-w-full px-4 space-y-6">
             {messages.map((message, index) => {
               const isEmptyAssistant = message.role === 'assistant' && !message.content && sending && index === messages.length - 1;
               const isStreamingAssistant = message.role === 'assistant' && message.content && sending && index === messages.length - 1;
@@ -670,7 +673,7 @@ export default function ChatMessages() {
                   </div>
                   
                   {/* Message Bubble */}
-                  <div className={`flex-1 max-w-[75%] ${
+                  <div className={`flex-1 max-w-[85%] ${
                     message.role === 'user' ? 'items-end' : 'items-start'
                   } flex flex-col`}>
                     <div
@@ -733,7 +736,7 @@ export default function ChatMessages() {
         
         {/* Evaluation Report Section */}
         {evaluation && (
-          <div className="max-w-3xl mx-auto mt-8">
+          <div className="w-full max-w-full px-4 mt-8">
             <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold flex items-center">
@@ -930,7 +933,7 @@ export default function ChatMessages() {
       {/* Input Area */}
       <div className="border-t bg-white p-4 shadow-lg">
         {evaluation ? (
-          <div className="max-w-3xl mx-auto">
+          <div className="w-full max-w-full px-4">
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
               <p className="text-sm text-yellow-800">
                 <span className="font-semibold">Evaluation report has been generated.</span> No new messages can be sent to this session.
@@ -938,7 +941,7 @@ export default function ChatMessages() {
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
+          <form onSubmit={handleSubmit} className="w-full max-w-full px-4">
             <div className="flex items-center space-x-3">
               <div className="flex-1 relative">
                 <Input

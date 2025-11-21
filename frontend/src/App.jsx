@@ -155,9 +155,7 @@ function AppRoutes() {
         path="/ragflow/chats/:chatId/sessions/:sessionId/messages"
         element={
           <ProtectedRoute allowedRoles={['admin', 'instructor']}>
-            <Layout>
-              <ChatMessages />
-            </Layout>
+            <ChatMessages />
           </ProtectedRoute>
         }
       />
@@ -235,9 +233,7 @@ function AppRoutes() {
         path="/student/chats/:chatId/sessions/:sessionId/messages"
         element={
           <ProtectedRoute allowedRoles={['student']}>
-            <Layout>
-              <ChatMessages />
-            </Layout>
+            <ChatMessages />
           </ProtectedRoute>
         }
       />

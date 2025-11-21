@@ -105,7 +105,71 @@ The frontend will start on `http://localhost:3000` (or next available port).
 - Clear browser cache if having issues
 
 ### Database Issues
-- Make sure MySQL server is running
-- Verify database exists: `SHOW DATABASES;`
-- Check user permissions
+
+#### MySQL Connection Error (Windows)
+If you see: `Can't connect to MySQL server on 'localhost' ([WinError 10061]...)`
+
+**Step 1: Check if MySQL is installed**
+```powershell
+# Check if MySQL service exists
+Get-Service -Name "*mysql*"
+```
+
+**Step 2: Start MySQL Service**
+```powershell
+# Start MySQL service (replace 'MySQL80' with your actual service name)
+Start-Service MySQL80
+
+# Or if using MySQL as a Windows service:
+net start MySQL80
+
+# Alternative: Start MySQL from command line (if installed as standalone)
+# Navigate to MySQL bin directory and run:
+# mysqld --console
+```
+
+**Step 3: Verify MySQL is running**
+```powershell
+# Check if MySQL is listening on port 3306
+Test-NetConnection -ComputerName localhost -Port 3306
+```
+
+**Step 4: Create the database**
+```powershell
+# Connect to MySQL (you may need to provide password)
+mysql -u root -p
+
+# Then run:
+CREATE DATABASE training_portal;
+EXIT;
+```
+
+**Step 5: Create/Update `.env` file**
+Make sure you have a `.env` file in the `backend` directory with:
+```env
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=your_mysql_password
+DB_NAME=training_portal
+JWT_SECRET_KEY=change-this-to-a-random-secret-key
+FLASK_ENV=development
+```
+
+**Common MySQL Service Names on Windows:**
+- `MySQL80` (MySQL 8.0)
+- `MySQL` (Generic)
+- `MySQL57` (MySQL 5.7)
+- `MYSQL` (All caps variant)
+
+**If MySQL is not installed:**
+1. Download MySQL from https://dev.mysql.com/downloads/installer/
+2. Install MySQL Server
+3. During installation, note the root password you set
+4. Use that password in your `.env` file
+
+**Alternative: Use XAMPP/WAMP**
+If you have XAMPP or WAMP installed:
+- Start MySQL from the XAMPP/WAMP control panel
+- Default credentials are usually `root` with no password
+- Update `.env` accordingly: `DB_PASSWORD=` (empty)
 

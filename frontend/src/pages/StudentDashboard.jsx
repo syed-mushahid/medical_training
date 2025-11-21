@@ -4,16 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import api from '../lib/api';
-import { BookOpen, User, MessageSquare, MessageCircle, Calendar } from 'lucide-react';
+import { BookOpen, User, MessageSquare, MessageCircle } from 'lucide-react';
 import Loading from '../components/Loading';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../components/ui/table';
 
 export default function StudentDashboard() {
   const { user, fetchUser } = useAuth();
@@ -150,104 +142,122 @@ export default function StudentDashboard() {
       </div>
 
       {/* All Sessions */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center space-x-2">
-            <MessageCircle className="h-5 w-5 text-primary" />
-            <CardTitle>My Conversations</CardTitle>
-          </div>
-          <CardDescription>All your conversation sessions</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {sessionsLoading ? (
-            <Loading />
-          ) : allSessions.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              No conversations yet. Start a conversation from Chat Assistants.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Session Name</TableHead>
-                  <TableHead>Chat Assistant</TableHead>
-                  <TableHead>Evaluation Score</TableHead>
-                  <TableHead>Messages</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {allSessions.map((session) => (
-                  <TableRow 
-                    key={session.id} 
-                    className="cursor-pointer hover:bg-accent"
-                    onClick={() => navigate(`/student/chats/${session.chat_id}/sessions/${session.id}/messages`)}
-                  >
-                    <TableCell className="font-medium">
-                      {session.name || 'Unnamed Session'}
-                    </TableCell>
-                    <TableCell>{session.chat_name}</TableCell>
-                    <TableCell>
-                      {session.evaluation_score !== null && session.evaluation_score !== undefined ? (
-                        <div className="flex items-center space-x-2">
-                          {(() => {
-                            const score = session.evaluation_score;
-                            let colorClass = '';
-                            if (score < 50) {
-                              colorClass = 'text-red-600';
-                            } else if (score >= 50 && score < 60) {
-                              colorClass = 'text-orange-600';
-                            } else if (score >= 60 && score < 75) {
-                              colorClass = 'text-yellow-600';
-                            } else {
-                              colorClass = 'text-green-600';
-                            }
-                            return (
-                              <span className={`font-semibold ${colorClass}`}>
-                                {score}/100
-                              </span>
-                            );
-                          })()}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {session.messages ? session.messages.length : 0}
-                    </TableCell>
-                    <TableCell>
-                      {session.create_date ? (
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-sm">
-                            {new Date(session.create_date).toLocaleDateString()}
-                          </span>
-                        </div>
-                      ) : (
-                        '-'
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/student/chats/${session.chat_id}/sessions/${session.id}/messages`);
-                        }}
-                      >
-                        Open
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center space-x-2">
+                    <MessageCircle className="h-5 w-5 text-primary" />
+                    <CardTitle>My Conversations</CardTitle>
+                  </div>
+                  <CardDescription>All your conversation sessions</CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {sessionsLoading ? (
+                    <div className="p-8">
+                      <Loading />
+                    </div>
+                  ) : allSessions.length === 0 ? (
+                    <div className="p-8 text-center">
+                      <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-50" />
+                      <p className="text-muted-foreground">
+                        No conversations yet. Start a conversation from Chat Assistants.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {allSessions.map((session) => {
+                        const messageCount = session.messages ? session.messages.length : 0;
+                        const lastMessage = session.messages && session.messages.length > 0 
+                          ? session.messages[session.messages.length - 1] 
+                          : null;
+                        const lastMessageText = lastMessage?.content 
+                          ? (lastMessage.content.length > 60 
+                              ? lastMessage.content.substring(0, 60) + '...' 
+                              : lastMessage.content)
+                          : 'No messages yet';
+                        const lastMessageTime = session.update_date 
+                          ? new Date(session.update_date) 
+                          : (session.create_date ? new Date(session.create_date) : null);
+                        
+                        const getScoreColor = (score) => {
+                          if (score < 50) return 'bg-red-100 text-red-700 border-red-200';
+                          if (score >= 50 && score < 60) return 'bg-orange-100 text-orange-700 border-orange-200';
+                          if (score >= 60 && score < 75) return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+                          return 'bg-green-100 text-green-700 border-green-200';
+                        };
+
+                        const formatTime = (date) => {
+                          if (!date) return '';
+                          const now = new Date();
+                          const diffMs = now - date;
+                          const diffMins = Math.floor(diffMs / 60000);
+                          const diffHours = Math.floor(diffMs / 3600000);
+                          const diffDays = Math.floor(diffMs / 86400000);
+
+                          if (diffMins < 1) return 'Just now';
+                          if (diffMins < 60) return `${diffMins}m ago`;
+                          if (diffHours < 24) return `${diffHours}h ago`;
+                          if (diffDays < 7) return `${diffDays}d ago`;
+                          return date.toLocaleDateString();
+                        };
+
+                        return (
+                          <div
+                            key={session.id}
+                            className="p-4 hover:bg-accent cursor-pointer transition-colors"
+                            onClick={() => navigate(`/student/chats/${session.chat_id}/sessions/${session.id}/messages`)}
+                          >
+                            <div className="flex items-start space-x-3">
+                              {/* Avatar */}
+                              <div className="flex-shrink-0">
+                                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                                  <MessageCircle className="h-6 w-6 text-primary" />
+                                </div>
+                              </div>
+
+                              {/* Content */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between mb-1">
+                                  <h3 className="font-semibold text-base truncate">
+                                    {session.name || 'Unnamed Session'}
+                                  </h3>
+                                  {lastMessageTime && (
+                                    <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
+                                      {formatTime(lastMessageTime)}
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <p className="text-sm text-muted-foreground truncate">
+                                    {session.chat_name || 'Chat Assistant'}
+                                  </p>
+                                  {session.evaluation_score !== null && session.evaluation_score !== undefined && (
+                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getScoreColor(session.evaluation_score)}`}>
+                                      {session.evaluation_score}/100
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Last Message Preview */}
+                                <div className="flex items-center justify-between">
+                                  <p className="text-sm text-muted-foreground truncate">
+                                    {lastMessageText}
+                                  </p>
+                                  {messageCount > 0 && (
+                                    <span className="ml-2 flex-shrink-0 text-xs text-muted-foreground">
+                                      {messageCount} {messageCount === 1 ? 'message' : 'messages'}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
