@@ -48,8 +48,20 @@ def create_app():
         print(f"\n[JWT] Missing token - Error: {str(error)}")
         return jsonify({'error': 'Authorization header is missing'}), 401
     # CORS configuration
-    # In production, restrict origins to your domain
-    cors_origins = os.getenv('CORS_ORIGINS', '*').split(',')
+    # Allow specific origins in production
+    cors_origins_env = os.getenv('CORS_ORIGINS', '*')
+    if cors_origins_env == '*':
+        # Default: allow all origins (development)
+        cors_origins = ['*']
+    else:
+        # Production: allow specific origins
+        cors_origins = [origin.strip() for origin in cors_origins_env.split(',')]
+    
+    # Always include the production frontend URL (without trailing slash)
+    production_frontend = 'http://46.224.35.114:3000'
+    if production_frontend not in cors_origins and '*' not in cors_origins:
+        cors_origins.append(production_frontend)
+    
     CORS(app, 
          resources={r"/api/*": {
              "origins": cors_origins, 

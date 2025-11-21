@@ -38,6 +38,7 @@ services:
       RAGFLOW_BASE_URL: ${RAGFLOW_BASE_URL:-http://localhost:80}
       RAGFLOW_API_KEY: ${RAGFLOW_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://46.224.35.114:3000,http://localhost:3000}
     ports:
       - "${BACKEND_PORT:-5002}:5000"
     extra_hosts:
