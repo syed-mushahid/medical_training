@@ -43,7 +43,7 @@ export default function ChatMessages() {
   
   // Get API URL from environment or use default
   const getApiUrl = () => {
-    return 'http://46.224.35.114:5000';
+    return 'http://46.224.35.114:5002';
   };
 
   useEffect(() => {
