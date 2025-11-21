@@ -136,7 +136,7 @@ export default function DatasetDocuments() {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `http://localhost:5000/api/ragflow/datasets/${datasetId}/documents/${doc.id}`,
+        `http://46.224.35.114:5002/api/ragflow/datasets/${datasetId}/documents/${doc.id}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
