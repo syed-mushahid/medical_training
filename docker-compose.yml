@@ -12,7 +12,7 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "46.224.35.114", "-u", "root"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -41,7 +41,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       FRONTEND_URL: ${FRONTEND_URL:-http://46.224.35.114:3000}
     ports:
-      - "${BACKEND_PORT:-5000}:5000"
+      - "${BACKEND_PORT:-5002}:5002"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -59,7 +59,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=${VITE_API_URL:-http://46.224.35.114:5000/api}
+        - VITE_API_URL=${VITE_API_URL:-http://46.224.35.114:5002/api}
         - VITE_FRONTEND_URL=${FRONTEND_URL:-http://46.224.35.114:3000}
         - VITE_RAGFLOW_BASE_URL=${RAGFLOW_BASE_URL:-http://46.224.35.114:80}
     container_name: training-portal-frontend

@@ -328,6 +328,6 @@ if __name__ == '__main__':
             traceback.print_exc()
             print("[App] Continuing startup - migrations may need to be run manually")
     
-    port = int(os.getenv('FLASK_PORT', '5000'))
+    port = int(os.getenv('FLASK_PORT', '5002'))
     app.run(host='0.0.0.0', port=port)
 

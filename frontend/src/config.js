@@ -4,7 +4,7 @@
  */
 
 // API Configuration
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://46.224.35.114:5000/api';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://46.224.35.114:5002/api';
 
 // Extract base URL without /api suffix for direct API calls
 export const API_BASE_URL_WITHOUT_API = API_BASE_URL.replace(/\/api$/, '');

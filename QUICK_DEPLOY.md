@@ -31,7 +31,7 @@ nano .env  # Edit with your production values
 **Critical values to update:**
 - `DB_PASSWORD`: Set a secure password (or leave empty if you prefer)
 - `JWT_SECRET_KEY`: Generate with `openssl rand -hex 32`
-- `VITE_API_URL`: Your server's public IP/domain (e.g., `http://123.45.67.89:5000/api`)
+- `VITE_API_URL`: Your server's public IP/domain (e.g., `http://123.45.67.89:5002/api`)
 
 ### 3. Install Docker (if needed)
 
@@ -61,14 +61,14 @@ docker compose logs -f
 sudo ufw allow 22/tcp    # SSH
 sudo ufw allow 80/tcp     # HTTP
 sudo ufw allow 443/tcp    # HTTPS
-sudo ufw allow 5000/tcp   # Backend API
+sudo ufw allow 5002/tcp   # Backend API
 sudo ufw enable
 ```
 
 ### 6. Access Your Application
 
 - **Frontend**: `http://your-server-ip:3000`
-- **Backend API**: `http://your-server-ip:5000/api`
+- **Backend API**: `http://your-server-ip:5002/api`
 
 ## Important Notes
 

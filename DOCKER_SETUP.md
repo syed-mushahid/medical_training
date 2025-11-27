@@ -42,7 +42,7 @@ This guide will help you run the Medical Training Portal using Docker.
    DB_NAME=training_portal
 
    # Backend Configuration
-   BACKEND_PORT=5000
+   BACKEND_PORT=5002
    JWT_SECRET_KEY=dev-secret-key-change-in-production
    RAGFLOW_BASE_URL=http://46.224.35.114:80
    RAGFLOW_API_KEY=
@@ -50,7 +50,7 @@ This guide will help you run the Medical Training Portal using Docker.
 
    # Frontend Configuration
    FRONTEND_PORT=3000
-   VITE_API_URL=http://46.224.35.114:5000/api
+   VITE_API_URL=http://46.224.35.114:5002/api
    ```
 
 3. **Build and start all services**:
@@ -62,7 +62,7 @@ This guide will help you run the Medical Training Portal using Docker.
 
 3. **Access the application**:
    - Frontend: http://46.224.35.114:3000
-   - Backend API: http://46.224.35.114:5000
+   - Backend API: http://46.224.35.114:5002
    - **Note**: This project uses an external MySQL database. See `EXTERNAL_MYSQL_SETUP.md` for configuration details.
 
 ## Important Notes
@@ -71,8 +71,8 @@ This guide will help you run the Medical Training Portal using Docker.
 
 The `VITE_API_URL` environment variable should point to where the backend is accessible **from your browser**, not from within Docker containers.
 
-- **Local development**: Use `http://46.224.35.114:5000/api`
-- **Production**: Use your server's domain/IP (e.g., `http://your-server.com:5000/api`)
+- **Local development**: Use `http://46.224.35.114:5002/api`
+- **Production**: Use your server's domain/IP (e.g., `http://your-server.com:5002/api`)
 
 ### External MySQL Database
 
@@ -119,7 +119,7 @@ Since MySQL is external, connect directly:
 docker exec -it your-mysql-container-name mysql -u root -p
 
 # If MySQL is on host:
-mysql -u root -p -h localhost
+mysql -u root -p -h 46.224.35.114
 ```
 
 ### Run backend commands:
@@ -161,7 +161,7 @@ If you get port conflicts, change the ports in your `.env` file:
    ```bash
    docker ps | grep mysql
    # or if on host:
-   mysqladmin ping -h localhost
+   mysqladmin ping -h 46.224.35.114
    ```
 2. **Check DB_HOST in `.env`** matches your MySQL container name or host
 3. **Verify network connectivity**: Ensure backend container can reach MySQL

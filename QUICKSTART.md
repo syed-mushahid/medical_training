@@ -43,7 +43,7 @@ pip install -r requirements.txt
 
 4. Create `.env` file:
 ```env
-DB_HOST=localhost
+DB_HOST=46.224.35.114
 DB_USER=root
 DB_PASSWORD=your_mysql_password
 DB_NAME=training_portal
@@ -56,7 +56,7 @@ FLASK_ENV=development
 python app.py
 ```
 
-The backend will start on `http://46.224.35.114:5000` and automatically create tables and seed the admin user.
+The backend will start on `http://46.224.35.114:5002` and automatically create tables and seed the admin user.
 
 ## Step 3: Frontend Setup
 
@@ -97,7 +97,7 @@ The frontend will start on `http://46.224.35.114:3000` (or next available port).
 ### Backend Issues
 - Make sure MySQL is running
 - Check that database credentials in `.env` are correct
-- Ensure port 5000 is not in use
+- Ensure port 5002 is not in use
 
 ### Frontend Issues
 - Make sure backend is running first
@@ -107,7 +107,7 @@ The frontend will start on `http://46.224.35.114:3000` (or next available port).
 ### Database Issues
 
 #### MySQL Connection Error (Windows)
-If you see: `Can't connect to MySQL server on 'localhost' ([WinError 10061]...)`
+If you see: `Can't connect to MySQL server on '46.224.35.114' ([WinError 10061]...)`
 
 **Step 1: Check if MySQL is installed**
 ```powershell
@@ -131,7 +131,7 @@ net start MySQL80
 **Step 3: Verify MySQL is running**
 ```powershell
 # Check if MySQL is listening on port 3306
-Test-NetConnection -ComputerName localhost -Port 3306
+Test-NetConnection -ComputerName 46.224.35.114 -Port 3306
 ```
 
 **Step 4: Create the database**
@@ -147,7 +147,7 @@ EXIT;
 **Step 5: Create/Update `.env` file**
 Make sure you have a `.env` file in the `backend` directory with:
 ```env
-DB_HOST=localhost
+DB_HOST=46.224.35.114
 DB_USER=root
 DB_PASSWORD=your_mysql_password
 DB_NAME=training_portal

@@ -17,7 +17,7 @@ def create_database_if_not_exists():
     # Get database configuration from environment
     db_user = os.getenv('DB_USER', 'root')
     db_password = os.getenv('DB_PASSWORD', '')
-    db_host = os.getenv('DB_HOST', 'localhost')
+    db_host = os.getenv('DB_HOST', '46.224.35.114')
     db_port = int(os.getenv('DB_PORT', '3306'))
     db_name = os.getenv('DB_NAME', 'training_portal')
     

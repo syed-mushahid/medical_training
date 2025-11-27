@@ -14,7 +14,7 @@ RUN npm ci
 COPY . .
 
 # Build arguments for environment variables
-ARG VITE_API_URL=http://46.224.35.114:5000/api
+ARG VITE_API_URL=http://46.224.35.114:5002/api
 ARG VITE_FRONTEND_URL=http://46.224.35.114:3000
 ARG VITE_RAGFLOW_BASE_URL=http://46.224.35.114:80
 

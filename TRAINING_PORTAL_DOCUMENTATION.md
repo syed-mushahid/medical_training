@@ -1394,7 +1394,7 @@ FLASK_ENV=production
 
 **Frontend (.env):**
 ```env
-VITE_API_URL=http://your-backend-url:5000
+VITE_API_URL=http://your-backend-url:5002
 ```
 
 ### Backend Deployment
@@ -1414,7 +1414,7 @@ VITE_API_URL=http://your-backend-url:5000
    ```bash
    # Using Gunicorn
    pip install gunicorn
-   gunicorn -w 4 -b 0.0.0.0:5000 app:app
+   gunicorn -w 4 -b 0.0.0.0:5002 app:app
    ```
 
 4. **Systemd Service (Optional):**
@@ -1426,7 +1426,7 @@ VITE_API_URL=http://your-backend-url:5000
    [Service]
    User=www-data
    WorkingDirectory=/path/to/backend
-   ExecStart=/path/to/venv/bin/gunicorn -w 4 -b 127.0.0.1:5000 app:app
+   ExecStart=/path/to/venv/bin/gunicorn -w 4 -b 127.0.0.1:5002 app:app
    Restart=always
 
    [Install]
@@ -1456,7 +1456,7 @@ VITE_API_URL=http://your-backend-url:5000
        }
 
        location /api {
-           proxy_pass http://46.224.35.114:5000;
+           proxy_pass http://46.224.35.114:5002;
            proxy_set_header Host $host;
            proxy_set_header X-Real-IP $remote_addr;
        }

@@ -66,7 +66,7 @@ CREATE DATABASE training_portal;
 
 5. Create a `.env` file in the backend directory:
 ```env
-DB_HOST=localhost
+DB_HOST=46.224.35.114
 DB_USER=root
 DB_PASSWORD=your_password
 DB_NAME=training_portal
@@ -79,7 +79,7 @@ FLASK_ENV=development
 python app.py
 ```
 
-The backend will run on `http://46.224.35.114:5000` and automatically create tables and seed the default admin user.
+The backend will run on `http://46.224.35.114:5002` and automatically create tables and seed the default admin user.
 
 ### Frontend Setup
 
