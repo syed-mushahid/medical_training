@@ -17,31 +17,68 @@ def get_openai_client():
     if not Config.OPENAI_API_KEY:
         raise ValueError('OpenAI API key is not configured')
     
-    # Some OpenAI library versions have issues with proxy environment variables
-    # We'll initialize the client with explicit parameters to avoid 'proxies' argument errors
+    # Fix for 'proxies' argument error: Use explicit httpx client without proxies
+    # This prevents the OpenAI library from trying to use proxy env vars incorrectly
     import os
     
     # Save and temporarily remove proxy env vars to prevent conflicts
     proxy_vars = {}
-    proxy_keys = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy']
+    proxy_keys = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy', 'NO_PROXY', 'no_proxy']
     for key in proxy_keys:
         if key in os.environ:
             proxy_vars[key] = os.environ.pop(key)
     
     try:
-        # Initialize client with only api_key parameter
-        # This avoids any proxy-related initialization issues
-        client = openai.OpenAI(api_key=Config.OPENAI_API_KEY)
-        return client
-    except TypeError as e:
-        # If there's still an issue, try with explicit timeout and no proxies
-        if 'proxies' in str(e).lower():
-            # Create client without any proxy configuration
+        # Try to use httpx client explicitly (OpenAI 1.x uses httpx internally)
+        # This prevents the OpenAI library from trying to auto-configure proxies
+        try:
+            import httpx
+            
+            # Create httpx client with explicit configuration that avoids proxy issues
+            # Use httpx.Client with minimal parameters - no proxies configuration
+            http_client = httpx.Client(
+                timeout=httpx.Timeout(60.0, connect=10.0),
+                # Explicitly disable proxy by not passing any proxy-related parameters
+                # This prevents httpx from reading proxy env vars
+            )
+            
+            # Initialize OpenAI client with explicit http_client
+            # This bypasses OpenAI's internal proxy handling that causes the 'proxies' error
             client = openai.OpenAI(
                 api_key=Config.OPENAI_API_KEY,
-                timeout=60.0
+                http_client=http_client
             )
             return client
+        except ImportError:
+            # httpx not available (shouldn't happen with OpenAI 1.x, but handle gracefully)
+            pass
+        except (TypeError, AttributeError) as httpx_error:
+            # If there's an error with httpx client creation, try direct initialization
+            error_msg = str(httpx_error).lower()
+            if 'proxies' in error_msg or 'http_client' in error_msg:
+                # Fall through to direct initialization
+                pass
+            else:
+                raise
+        
+        # Fallback: Direct initialization without http_client
+        # This should work if proxy env vars are removed from environment
+        client = openai.OpenAI(api_key=Config.OPENAI_API_KEY)
+        return client
+        
+    except TypeError as e:
+        # If we still get a 'proxies' error, it means the OpenAI library is trying to use proxies
+        # Try one more time with explicit timeout but no other parameters
+        if 'proxies' in str(e).lower():
+            try:
+                client = openai.OpenAI(api_key=Config.OPENAI_API_KEY, timeout=60.0)
+                return client
+            except Exception:
+                # If all else fails, provide a helpful error message
+                raise ValueError(
+                    f"Failed to initialize OpenAI client due to proxy configuration issue: {str(e)}. "
+                    "Please check your environment variables for HTTP_PROXY, HTTPS_PROXY, etc."
+                )
         raise
     finally:
         # Restore proxy env vars if they were set
