@@ -364,9 +364,9 @@ export default function Students() {
             </div>
             <div className="space-y-2">
               <Label>{t('students.groups')}</Label>
-              {groups.length === 0 ? (
+                {groups.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-2">{t('students.noGroupsAvailable')}</p>
-              ) : (
+                ) : (
                 <MultiSelect
                   options={groups.map((group) => ({
                     value: group.id,
@@ -380,7 +380,7 @@ export default function Students() {
                   searchPlaceholder={t('students.searchGroups') || "Search groups..."}
                   emptyMessage={t('students.noGroupsFound') || "No groups found"}
                 />
-              )}
+                )}
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleDialogClose}>

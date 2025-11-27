@@ -13,10 +13,40 @@ import openai
 evaluations_bp = Blueprint('evaluations', __name__)
 
 def get_openai_client():
-    """Get OpenAI client"""
+    """Get OpenAI client - handles proxy-related initialization issues"""
     if not Config.OPENAI_API_KEY:
         raise ValueError('OpenAI API key is not configured')
-    return openai.OpenAI(api_key=Config.OPENAI_API_KEY)
+    
+    # Some OpenAI library versions have issues with proxy environment variables
+    # We'll initialize the client with explicit parameters to avoid 'proxies' argument errors
+    import os
+    
+    # Save and temporarily remove proxy env vars to prevent conflicts
+    proxy_vars = {}
+    proxy_keys = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy']
+    for key in proxy_keys:
+        if key in os.environ:
+            proxy_vars[key] = os.environ.pop(key)
+    
+    try:
+        # Initialize client with only api_key parameter
+        # This avoids any proxy-related initialization issues
+        client = openai.OpenAI(api_key=Config.OPENAI_API_KEY)
+        return client
+    except TypeError as e:
+        # If there's still an issue, try with explicit timeout and no proxies
+        if 'proxies' in str(e).lower():
+            # Create client without any proxy configuration
+            client = openai.OpenAI(
+                api_key=Config.OPENAI_API_KEY,
+                timeout=60.0
+            )
+            return client
+        raise
+    finally:
+        # Restore proxy env vars if they were set
+        for key, value in proxy_vars.items():
+            os.environ[key] = value
 
 @evaluations_bp.route('/chats/<chat_id>/sessions/<session_id>/evaluate', methods=['POST'])
 @jwt_required()

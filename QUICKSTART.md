@@ -56,7 +56,7 @@ FLASK_ENV=development
 python app.py
 ```
 
-The backend will start on `http://46.224.35.114:5002` and automatically create tables and seed the admin user.
+The backend will start on `http://46.224.35.114:5000` and automatically create tables and seed the admin user.
 
 ## Step 3: Frontend Setup
 
@@ -97,7 +97,7 @@ The frontend will start on `http://46.224.35.114:3000` (or next available port).
 ### Backend Issues
 - Make sure MySQL is running
 - Check that database credentials in `.env` are correct
-- Ensure port 5002 is not in use
+- Ensure port 5000 is not in use
 
 ### Frontend Issues
 - Make sure backend is running first

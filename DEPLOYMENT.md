@@ -33,7 +33,7 @@ DB_PASSWORD=your-secure-password-here
 DB_NAME=training_portal
 
 # Backend Configuration
-BACKEND_PORT=5002
+BACKEND_PORT=5000
 JWT_SECRET_KEY=your-very-secure-random-secret-key-here
 RAGFLOW_BASE_URL=http://your-ragflow-server:80
 RAGFLOW_API_KEY=your-ragflow-api-key
@@ -41,7 +41,7 @@ OPENAI_API_KEY=your-openai-api-key
 
 # Frontend Configuration
 FRONTEND_PORT=80
-VITE_API_URL=http://your-server-ip-or-domain:5002/api
+VITE_API_URL=http://your-server-ip-or-domain:5000/api
 ```
 
 **Important Security Notes:**
@@ -121,7 +121,7 @@ vim .env
 **Update these critical values:**
 - `DB_PASSWORD`: Strong password for MySQL
 - `JWT_SECRET_KEY`: Generate with `openssl rand -hex 32`
-- `VITE_API_URL`: Your server's public IP or domain (e.g., `http://yourdomain.com:5002/api` or `http://123.45.67.89:5002/api`)
+- `VITE_API_URL`: Your server's public IP or domain (e.g., `http://yourdomain.com:5000/api` or `http://123.45.67.89:5000/api`)
 - `RAGFLOW_BASE_URL`: Your RAGFlow server URL
 - `OPENAI_API_KEY`: Your OpenAI API key
 - `RAGFLOW_API_KEY`: Your RAGFlow API key
@@ -132,10 +132,10 @@ The frontend needs to know where the backend is accessible from the browser. Upd
 
 ```env
 # If using IP address:
-VITE_API_URL=http://your-server-ip:5002/api
+VITE_API_URL=http://your-server-ip:5000/api
 
 # If using domain name:
-VITE_API_URL=http://yourdomain.com:5002/api
+VITE_API_URL=http://yourdomain.com:5000/api
 
 # If using HTTPS (recommended for production):
 VITE_API_URL=https://api.yourdomain.com/api
@@ -177,7 +177,7 @@ sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
 
 # Allow backend port (if accessing directly)
-sudo ufw allow 5002/tcp
+sudo ufw allow 5000/tcp
 
 # Enable firewall
 sudo ufw enable
@@ -223,7 +223,7 @@ docker compose logs frontend
 ### Test Access
 
 - **Frontend**: `http://your-server-ip:3000` or `http://yourdomain.com`
-- **Backend API**: `http://your-server-ip:5002/api` or `http://yourdomain.com:5002/api`
+- **Backend API**: `http://your-server-ip:5000/api` or `http://yourdomain.com:5000/api`
 
 ## Step 8: Production Optimizations
 
@@ -276,7 +276,7 @@ server {
 
     # Backend API
     location /api {
-        proxy_pass http://46.224.35.114:5002;
+        proxy_pass http://46.224.35.114:5000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -390,7 +390,7 @@ docker compose exec backend bash
 **Port Already in Use:**
 ```bash
 # Check what's using the port
-sudo netstat -tulpn | grep :5002
+sudo netstat -tulpn | grep :5000
 # Kill the process or change port in .env
 ```
 

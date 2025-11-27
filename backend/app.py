@@ -65,7 +65,7 @@ def create_app():
         cors_origins.append(frontend_url)
     
     # Add specific allowed origin
-    allowed_origin = 'http://46.224.35.114:3000'
+    allowed_origin = 'http://46.224.35.114:5173'
     if allowed_origin not in cors_origins and '*' not in cors_origins:
         cors_origins.append(allowed_origin)
     
@@ -328,6 +328,6 @@ if __name__ == '__main__':
             traceback.print_exc()
             print("[App] Continuing startup - migrations may need to be run manually")
     
-    port = int(os.getenv('FLASK_PORT', '5002'))
+    port = int(os.getenv('FLASK_PORT', '5000'))
     app.run(host='0.0.0.0', port=port)
 
