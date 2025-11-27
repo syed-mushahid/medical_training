@@ -38,7 +38,7 @@
     "loggingIn": "Logging in...",
     "success": "Logged in successfully",
     "failed": "Login failed",
-    "defaultCredentials": "Default Admin Credentials:",
+    "defaultCredentials": "Default Admin Credential:",
     "emailPlaceholder": "name@example.com"
   },
   "dashboard": {

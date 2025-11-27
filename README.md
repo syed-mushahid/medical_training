@@ -79,7 +79,7 @@ FLASK_ENV=development
 python app.py
 ```
 
-The backend will run on `http://localhost:5000` and automatically create tables and seed the default admin user.
+The backend will run on `http://46.224.35.114:5000` and automatically create tables and seed the default admin user.
 
 ### Frontend Setup
 
@@ -98,7 +98,7 @@ npm install
 npm run dev
 ```
 
-The frontend will run on `http://localhost:3000` (or the next available port).
+The frontend will run on `http://46.224.35.114:3000` (or the next available port).
 
 ## Default Admin Credentials
 

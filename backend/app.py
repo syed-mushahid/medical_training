@@ -64,6 +64,11 @@ def create_app():
         frontend_url = frontend_url.rstrip('/')
         cors_origins.append(frontend_url)
     
+    # Add specific allowed origin
+    allowed_origin = 'http://46.224.35.114:3000'
+    if allowed_origin not in cors_origins and '*' not in cors_origins:
+        cors_origins.append(allowed_origin)
+    
     CORS(app, 
          resources={r"/api/*": {
              "origins": cors_origins, 

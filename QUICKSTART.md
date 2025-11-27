@@ -56,7 +56,7 @@ FLASK_ENV=development
 python app.py
 ```
 
-The backend will start on `http://localhost:5000` and automatically create tables and seed the admin user.
+The backend will start on `http://46.224.35.114:5000` and automatically create tables and seed the admin user.
 
 ## Step 3: Frontend Setup
 
@@ -75,11 +75,11 @@ npm install
 npm run dev
 ```
 
-The frontend will start on `http://localhost:3000` (or next available port).
+The frontend will start on `http://46.224.35.114:3000` (or next available port).
 
 ## Step 4: Login
 
-1. Open your browser and go to `http://localhost:3000`
+1. Open your browser and go to `http://46.224.35.114:3000`
 2. Login with default admin credentials:
    - Email: `admin@trainingportal.com`
    - Password: `admin123`

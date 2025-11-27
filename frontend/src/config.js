@@ -4,7 +4,7 @@
  */
 
 // API Configuration
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://46.224.35.114:5000/api';
 
 // Extract base URL without /api suffix for direct API calls
 export const API_BASE_URL_WITHOUT_API = API_BASE_URL.replace(/\/api$/, '');
@@ -13,7 +13,7 @@ export const API_BASE_URL_WITHOUT_API = API_BASE_URL.replace(/\/api$/, '');
 export const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin;
 
 // RAGFlow Configuration
-export const RAGFLOW_BASE_URL = import.meta.env.VITE_RAGFLOW_BASE_URL || 'http://localhost:80';
+export const RAGFLOW_BASE_URL = import.meta.env.VITE_RAGFLOW_BASE_URL || 'http://46.224.35.114:80';
 
 // Environment
 export const ENV = import.meta.env.MODE || 'development';

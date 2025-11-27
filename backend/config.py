@@ -8,7 +8,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'dev-secret-key-change-in-production')
     JWT_ACCESS_TOKEN_EXPIRES = False  # Set to False for development, configure in production
-    RAGFLOW_BASE_URL = os.getenv('RAGFLOW_BASE_URL', 'http://localhost:80')
+    RAGFLOW_BASE_URL = os.getenv('RAGFLOW_BASE_URL', 'http://46.224.35.114:80')
     RAGFLOW_API_KEY = os.getenv('RAGFLOW_API_KEY', '')
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 

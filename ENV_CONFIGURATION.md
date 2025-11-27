@@ -10,17 +10,17 @@ These variables are used during the frontend build process and are baked into th
 
 | Variable | Description | Default | Example |
 |----------|-------------|---------|---------|
-| `VITE_API_URL` | Backend API base URL (must include `/api`) | `http://localhost:5000/api` | `http://46.224.35.114:5000/api` |
-| `VITE_FRONTEND_URL` | Frontend application URL | `http://localhost:3000` | `http://46.224.35.114:3000` |
-| `VITE_RAGFLOW_BASE_URL` | RAGFlow server base URL | `http://localhost:80` | `http://46.224.35.114:80` |
+| `VITE_API_URL` | Backend API base URL (must include `/api`) | `http://46.224.35.114:5000/api` | `http://46.224.35.114:5000/api` |
+| `VITE_FRONTEND_URL` | Frontend application URL | `http://46.224.35.114:3000` | `http://46.224.35.114:3000` |
+| `VITE_RAGFLOW_BASE_URL` | RAGFlow server base URL | `http://46.224.35.114:80` | `http://46.224.35.114:80` |
 
 ### Backend Variables
 
 | Variable | Description | Default | Example |
 |----------|-------------|---------|---------|
-| `FRONTEND_URL` | Frontend URL for CORS configuration | `http://localhost:3000` | `http://46.224.35.114:3000` |
-| `CORS_ORIGINS` | Comma-separated list of allowed CORS origins | Empty (uses FRONTEND_URL) | `http://46.224.35.114:3000,http://localhost:3000` |
-| `RAGFLOW_BASE_URL` | RAGFlow server base URL | `http://localhost:80` | `http://46.224.35.114:80` |
+| `FRONTEND_URL` | Frontend URL for CORS configuration | `http://46.224.35.114:3000` | `http://46.224.35.114:3000` |
+| `CORS_ORIGINS` | Comma-separated list of allowed CORS origins | Empty (uses FRONTEND_URL) | `http://46.224.35.114:3000,http://46.224.35.114:3000` |
+| `RAGFLOW_BASE_URL` | RAGFlow server base URL | `http://46.224.35.114:80` | `http://46.224.35.114:80` |
 | `BACKEND_PORT` | Backend port (external) | `5000` | `5000` |
 | `FRONTEND_PORT` | Frontend port (external) | `3000` | `3000` |
 
@@ -41,19 +41,19 @@ DB_NAME=training_portal
 # Backend Configuration
 BACKEND_PORT=5000
 JWT_SECRET_KEY=your-secret-key
-RAGFLOW_BASE_URL=http://localhost:80
+RAGFLOW_BASE_URL=http://46.224.35.114:80
 RAGFLOW_API_KEY=your-ragflow-api-key
 OPENAI_API_KEY=your-openai-api-key
 
 # Frontend Configuration
 FRONTEND_PORT=3000
-FRONTEND_URL=http://localhost:3000
-VITE_API_URL=http://localhost:5000/api
-VITE_FRONTEND_URL=http://localhost:3000
-VITE_RAGFLOW_BASE_URL=http://localhost:80
+FRONTEND_URL=http://46.224.35.114:3000
+VITE_API_URL=http://46.224.35.114:5000/api
+VITE_FRONTEND_URL=http://46.224.35.114:3000
+VITE_RAGFLOW_BASE_URL=http://46.224.35.114:80
 
 # CORS Configuration
-CORS_ORIGINS=http://localhost:3000
+CORS_ORIGINS=http://46.224.35.114:3000
 ```
 
 ### Production Example
@@ -91,8 +91,8 @@ Use environment variables directly:
 ```python
 import os
 
-frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
-ragflow_url = os.getenv('RAGFLOW_BASE_URL', 'http://localhost:80')
+frontend_url = os.getenv('FRONTEND_URL', 'http://46.224.35.114:3000')
+ragflow_url = os.getenv('RAGFLOW_BASE_URL', 'http://46.224.35.114:80')
 ```
 
 ## Environment-Specific Configuration
@@ -100,10 +100,10 @@ ragflow_url = os.getenv('RAGFLOW_BASE_URL', 'http://localhost:80')
 ### Development
 
 ```env
-VITE_API_URL=http://localhost:5000/api
-VITE_FRONTEND_URL=http://localhost:3000
-VITE_RAGFLOW_BASE_URL=http://localhost:80
-FRONTEND_URL=http://localhost:3000
+VITE_API_URL=http://46.224.35.114:5000/api
+VITE_FRONTEND_URL=http://46.224.35.114:3000
+VITE_RAGFLOW_BASE_URL=http://46.224.35.114:80
+FRONTEND_URL=http://46.224.35.114:3000
 ```
 
 ### Production
@@ -126,7 +126,7 @@ CORS_ORIGINS=http://46.224.35.114:3000
 
 4. **CORS configuration**: The backend automatically includes `FRONTEND_URL` in allowed origins. You can also specify additional origins in `CORS_ORIGINS`.
 
-5. **API URL format**: `VITE_API_URL` should include the `/api` suffix (e.g., `http://localhost:5000/api`).
+5. **API URL format**: `VITE_API_URL` should include the `/api` suffix (e.g., `http://46.224.35.114:5000/api`).
 
 ## Rebuilding After Changes
 
