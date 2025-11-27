@@ -115,6 +115,9 @@ def create_chat():
         if 'avatar' in data:
             request_body['avatar'] = data['avatar']
         
+        if 'description' in data:
+            request_body['description'] = data['description'].strip()
+        
         if 'dataset_ids' in data:
             if isinstance(data['dataset_ids'], list):
                 request_body['dataset_ids'] = data['dataset_ids']
@@ -146,50 +149,82 @@ def create_chat():
                         llm_config['frequency_penalty'] = float(data['llm']['frequency_penalty'])
                     except (ValueError, TypeError):
                         return jsonify({'error': 'frequency_penalty must be a float'}), 400
+                if 'reasoning' in data['llm']:
+                    if isinstance(data['llm']['reasoning'], bool):
+                        llm_config['reasoning'] = data['llm']['reasoning']
+                    else:
+                        return jsonify({'error': 'reasoning must be a boolean'}), 400
                 request_body['llm'] = llm_config
         
         if 'prompt' in data:
             if isinstance(data['prompt'], dict):
+                # Keys that RAGFlow moves to root level (should NOT be in prompt_config)
+                keys_to_move_to_root = ["similarity_threshold", "vector_similarity_weight", "top_n", "rerank_id", "top_k"]
+                
+                # Start with all prompt fields, then handle special cases
                 prompt_config = {}
+                
+                # Copy all fields from prompt to prompt_config (except those that go to root)
+                for key, value in data['prompt'].items():
+                    if key not in keys_to_move_to_root:
+                        prompt_config[key] = value
+                
+                # Handle fields that go to root level
                 if 'similarity_threshold' in data['prompt']:
                     try:
-                        prompt_config['similarity_threshold'] = float(data['prompt']['similarity_threshold'])
+                        request_body['similarity_threshold'] = float(data['prompt']['similarity_threshold'])
                     except (ValueError, TypeError):
                         return jsonify({'error': 'similarity_threshold must be a float'}), 400
+                
                 if 'keywords_similarity_weight' in data['prompt']:
                     try:
-                        prompt_config['keywords_similarity_weight'] = float(data['prompt']['keywords_similarity_weight'])
+                        request_body['vector_similarity_weight'] = float(data['prompt']['keywords_similarity_weight'])
                     except (ValueError, TypeError):
                         return jsonify({'error': 'keywords_similarity_weight must be a float'}), 400
+                
                 if 'top_n' in data['prompt']:
                     try:
-                        prompt_config['top_n'] = int(data['prompt']['top_n'])
+                        request_body['top_n'] = int(data['prompt']['top_n'])
                     except (ValueError, TypeError):
                         return jsonify({'error': 'top_n must be an integer'}), 400
-                if 'variables' in data['prompt']:
-                    if isinstance(data['prompt']['variables'], list):
-                        prompt_config['variables'] = data['prompt']['variables']
-                    else:
-                        return jsonify({'error': 'variables must be a list'}), 400
-                if 'rerank_model' in data['prompt']:
-                    prompt_config['rerank_model'] = data['prompt']['rerank_model']
-                if 'empty_response' in data['prompt']:
-                    prompt_config['empty_response'] = data['prompt']['empty_response']
-                if 'opener' in data['prompt']:
-                    prompt_config['opener'] = data['prompt']['opener']
-                if 'show_quote' in data['prompt']:
-                    if isinstance(data['prompt']['show_quote'], bool):
-                        prompt_config['show_quote'] = data['prompt']['show_quote']
-                    else:
-                        return jsonify({'error': 'show_quote must be a boolean'}), 400
-                if 'prompt' in data['prompt']:
-                    prompt_config['prompt'] = data['prompt']['prompt']
+                
                 if 'top_k' in data['prompt']:
                     try:
-                        prompt_config['top_k'] = int(data['prompt']['top_k'])
+                        request_body['top_k'] = int(data['prompt']['top_k'])
                     except (ValueError, TypeError):
                         return jsonify({'error': 'top_k must be an integer'}), 400
+                
+                if 'rerank_model' in data['prompt']:
+                    request_body['rerank_id'] = data['prompt']['rerank_model']
+                
+                # Validate specific fields
+                if 'variables' in prompt_config and not isinstance(prompt_config['variables'], list):
+                    return jsonify({'error': 'variables must be a list'}), 400
+                
+                if 'show_quote' in prompt_config and not isinstance(prompt_config['show_quote'], bool):
+                    return jsonify({'error': 'show_quote must be a boolean'}), 400
+                
+                if 'keyword_analysis' in prompt_config and not isinstance(prompt_config['keyword_analysis'], bool):
+                    return jsonify({'error': 'keyword_analysis must be a boolean'}), 400
+                
+                # Handle cross_languages - validate it's a list (values should already be capitalized from frontend)
+                if 'cross_languages' in prompt_config:
+                    if isinstance(prompt_config['cross_languages'], list):
+                        # Validate and filter to only valid languages
+                        valid_languages = ['English', 'Chinese', 'Spanish', 'French', 'German', 'Japanese', 'Korean', 'Vietnamese']
+                        filtered_languages = [lang for lang in prompt_config['cross_languages'] if lang in valid_languages]
+                        prompt_config['cross_languages'] = filtered_languages
+                    elif prompt_config['cross_languages'] is None:
+                        # Allow None, but convert to empty list for consistency
+                        prompt_config['cross_languages'] = []
+                    else:
+                        return jsonify({'error': 'cross_languages must be a list'}), 400
+                
                 request_body['prompt'] = prompt_config
+        
+        # Debug: Log the request body to verify cross_languages is included
+        import logging
+        logging.debug(f"Request body prompt_config: {request_body.get('prompt', {}).get('cross_languages', 'NOT SET')}")
         
         # Make request to RAGFlow
         response = requests.post(
@@ -202,9 +237,14 @@ def create_chat():
         response_data = response.json()
         
         if response.status_code == 200 and response_data.get('code') == 0:
+            # Verify cross_languages was saved by checking the response
+            saved_chat = response_data.get('data', {})
+            saved_prompt = saved_chat.get('prompt', {})
+            logging.debug(f"Saved cross_languages: {saved_prompt.get('cross_languages', 'NOT FOUND')}")
+            
             return jsonify({
                 'success': True,
-                'chat': response_data.get('data', {})
+                'chat': saved_chat
             }), 201
         else:
             error_message = response_data.get('message', 'Failed to create chat assistant')
@@ -219,6 +259,7 @@ def create_chat():
         return jsonify({'error': f'Failed to connect to RAGFlow: {str(e)}'}), 500
     except Exception as e:
         return jsonify({'error': f'An error occurred: {str(e)}'}), 500
+
 
 @ragflow_chats_bp.route('/chats/<chat_id>', methods=['PUT'])
 @admin_or_instructor_required
@@ -244,6 +285,9 @@ def update_chat(chat_id):
         if 'avatar' in data:
             request_body['avatar'] = data['avatar']
         
+        if 'description' in data:
+            request_body['description'] = data['description'].strip()
+        
         if 'dataset_ids' in data:
             if isinstance(data['dataset_ids'], list):
                 request_body['dataset_ids'] = data['dataset_ids']
@@ -275,49 +319,77 @@ def update_chat(chat_id):
                         llm_config['frequency_penalty'] = float(data['llm']['frequency_penalty'])
                     except (ValueError, TypeError):
                         return jsonify({'error': 'frequency_penalty must be a float'}), 400
+                if 'reasoning' in data['llm']:
+                    if isinstance(data['llm']['reasoning'], bool):
+                        llm_config['reasoning'] = data['llm']['reasoning']
+                    else:
+                        return jsonify({'error': 'reasoning must be a boolean'}), 400
                 request_body['llm'] = llm_config
         
         if 'prompt' in data:
             if isinstance(data['prompt'], dict):
+                # Keys that RAGFlow moves to root level (should NOT be in prompt_config)
+                keys_to_move_to_root = ["similarity_threshold", "vector_similarity_weight", "top_n", "rerank_id", "top_k"]
+                
+                # Start with all prompt fields, then handle special cases
                 prompt_config = {}
+                
+                # Copy all fields from prompt to prompt_config (except those that go to root)
+                for key, value in data['prompt'].items():
+                    if key not in keys_to_move_to_root:
+                        prompt_config[key] = value
+                
+                # Handle fields that go to root level
                 if 'similarity_threshold' in data['prompt']:
                     try:
-                        prompt_config['similarity_threshold'] = float(data['prompt']['similarity_threshold'])
+                        request_body['similarity_threshold'] = float(data['prompt']['similarity_threshold'])
                     except (ValueError, TypeError):
                         return jsonify({'error': 'similarity_threshold must be a float'}), 400
+                
                 if 'keywords_similarity_weight' in data['prompt']:
                     try:
-                        prompt_config['keywords_similarity_weight'] = float(data['prompt']['keywords_similarity_weight'])
+                        request_body['vector_similarity_weight'] = float(data['prompt']['keywords_similarity_weight'])
                     except (ValueError, TypeError):
                         return jsonify({'error': 'keywords_similarity_weight must be a float'}), 400
+                
                 if 'top_n' in data['prompt']:
                     try:
-                        prompt_config['top_n'] = int(data['prompt']['top_n'])
+                        request_body['top_n'] = int(data['prompt']['top_n'])
                     except (ValueError, TypeError):
                         return jsonify({'error': 'top_n must be an integer'}), 400
-                if 'variables' in data['prompt']:
-                    if isinstance(data['prompt']['variables'], list):
-                        prompt_config['variables'] = data['prompt']['variables']
-                    else:
-                        return jsonify({'error': 'variables must be a list'}), 400
-                if 'rerank_model' in data['prompt']:
-                    prompt_config['rerank_model'] = data['prompt']['rerank_model']
-                if 'empty_response' in data['prompt']:
-                    prompt_config['empty_response'] = data['prompt']['empty_response']
-                if 'opener' in data['prompt']:
-                    prompt_config['opener'] = data['prompt']['opener']
-                if 'show_quote' in data['prompt']:
-                    if isinstance(data['prompt']['show_quote'], bool):
-                        prompt_config['show_quote'] = data['prompt']['show_quote']
-                    else:
-                        return jsonify({'error': 'show_quote must be a boolean'}), 400
-                if 'prompt' in data['prompt']:
-                    prompt_config['prompt'] = data['prompt']['prompt']
+                
                 if 'top_k' in data['prompt']:
                     try:
-                        prompt_config['top_k'] = int(data['prompt']['top_k'])
+                        request_body['top_k'] = int(data['prompt']['top_k'])
                     except (ValueError, TypeError):
                         return jsonify({'error': 'top_k must be an integer'}), 400
+                
+                if 'rerank_model' in data['prompt']:
+                    request_body['rerank_id'] = data['prompt']['rerank_model']
+                
+                # Validate specific fields
+                if 'variables' in prompt_config and not isinstance(prompt_config['variables'], list):
+                    return jsonify({'error': 'variables must be a list'}), 400
+                
+                if 'show_quote' in prompt_config and not isinstance(prompt_config['show_quote'], bool):
+                    return jsonify({'error': 'show_quote must be a boolean'}), 400
+                
+                if 'keyword_analysis' in prompt_config and not isinstance(prompt_config['keyword_analysis'], bool):
+                    return jsonify({'error': 'keyword_analysis must be a boolean'}), 400
+                
+                # Handle cross_languages - validate it's a list (values should already be capitalized from frontend)
+                if 'cross_languages' in prompt_config:
+                    if isinstance(prompt_config['cross_languages'], list):
+                        # Validate and filter to only valid languages
+                        valid_languages = ['English', 'Chinese', 'Spanish', 'French', 'German', 'Japanese', 'Korean', 'Vietnamese']
+                        filtered_languages = [lang for lang in prompt_config['cross_languages'] if lang in valid_languages]
+                        prompt_config['cross_languages'] = filtered_languages
+                    elif prompt_config['cross_languages'] is None:
+                        # Allow None, but convert to empty list for consistency
+                        prompt_config['cross_languages'] = []
+                    else:
+                        return jsonify({'error': 'cross_languages must be a list'}), 400
+                
                 request_body['prompt'] = prompt_config
         
         # Make request to RAGFlow

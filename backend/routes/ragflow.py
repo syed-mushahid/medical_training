@@ -545,3 +545,118 @@ def delete_knowledge_graph(dataset_id):
     except Exception as e:
         return jsonify({'error': f'An error occurred: {str(e)}'}), 500
 
+@ragflow_bp.route('/retrieval', methods=['POST', 'OPTIONS'])
+@admin_or_instructor_required
+def retrieval():
+    """Retrieve chunks from datasets using semantic search"""
+    try:
+        current_user = get_current_user()
+        current_instructor = None
+        
+        # Get instructor's API key if current user is an instructor
+        api_key_to_use = None
+        if current_user.role == 'instructor' and current_user.instructor:
+            current_instructor = current_user.instructor
+            api_key_to_use = current_instructor.ragflow_api_key
+            if not api_key_to_use:
+                return jsonify({'error': 'RAGFlow API key is not configured for this instructor. Please contact admin to set it up.'}), 400
+        elif current_user.role == 'admin':
+            api_key_to_use = RAGFLOW_API_KEY
+        
+        if not api_key_to_use:
+            return jsonify({'error': 'RAGFlow API key is not configured'}), 400
+        
+        data = request.get_json() or {}
+        
+        # Validate required fields
+        if 'question' not in data or not data.get('question'):
+            return jsonify({'error': 'question is required'}), 400
+        
+        if not data.get('dataset_ids') and not data.get('document_ids'):
+            return jsonify({'error': 'Either dataset_ids or document_ids is required'}), 400
+        
+        # Prepare request body
+        request_body = {
+            'question': data['question'].strip()
+        }
+        
+        # Add optional fields
+        if data.get('dataset_ids'):
+            if not isinstance(data['dataset_ids'], list):
+                return jsonify({'error': 'dataset_ids must be an array'}), 400
+            request_body['dataset_ids'] = data['dataset_ids']
+        
+        if data.get('document_ids'):
+            if not isinstance(data['document_ids'], list):
+                return jsonify({'error': 'document_ids must be an array'}), 400
+            request_body['document_ids'] = data['document_ids']
+        
+        if 'page' in data:
+            try:
+                request_body['page'] = int(data['page'])
+            except (ValueError, TypeError):
+                return jsonify({'error': 'page must be an integer'}), 400
+        
+        if 'page_size' in data:
+            try:
+                request_body['page_size'] = int(data['page_size'])
+            except (ValueError, TypeError):
+                return jsonify({'error': 'page_size must be an integer'}), 400
+        
+        if 'similarity_threshold' in data:
+            try:
+                request_body['similarity_threshold'] = float(data['similarity_threshold'])
+            except (ValueError, TypeError):
+                return jsonify({'error': 'similarity_threshold must be a number'}), 400
+        
+        if 'vector_similarity_weight' in data:
+            try:
+                request_body['vector_similarity_weight'] = float(data['vector_similarity_weight'])
+            except (ValueError, TypeError):
+                return jsonify({'error': 'vector_similarity_weight must be a number'}), 400
+        
+        if 'top_k' in data:
+            try:
+                request_body['top_k'] = int(data['top_k'])
+            except (ValueError, TypeError):
+                return jsonify({'error': 'top_k must be an integer'}), 400
+        
+        if 'keyword' in data:
+            if not isinstance(data['keyword'], bool):
+                return jsonify({'error': 'keyword must be a boolean'}), 400
+            request_body['keyword'] = data['keyword']
+        
+        if 'highlight' in data:
+            if not isinstance(data['highlight'], bool):
+                return jsonify({'error': 'highlight must be a boolean'}), 400
+            request_body['highlight'] = data['highlight']
+        
+        # Make request to RAGFlow
+        response = requests.post(
+            f'{RAGFLOW_BASE_URL}/api/v1/retrieval',
+            json=request_body,
+            headers=get_ragflow_headers(api_key_to_use),
+            timeout=60  # Longer timeout for retrieval operations
+        )
+        
+        response_data = response.json()
+        
+        if response.status_code == 200 and response_data.get('code') == 0:
+            return jsonify({
+                'success': True,
+                'chunks': response_data.get('data', {}).get('chunks', []),
+                'total': response_data.get('data', {}).get('total', 0)
+            }), 200
+        else:
+            error_message = response_data.get('message', 'Failed to retrieve chunks')
+            return jsonify({
+                'success': False,
+                'error': error_message,
+                'code': response_data.get('code', -1)
+            }), response.status_code if response.status_code != 200 else 400
+            
+    except requests.exceptions.RequestException as e:
+        return jsonify({'success': False, 'error': f'Failed to connect to RAGFlow: {str(e)}'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'An error occurred: {str(e)}'}), 500
+

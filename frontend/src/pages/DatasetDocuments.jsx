@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
+import { getApiUrl } from '../config';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import {
@@ -23,7 +24,9 @@ import {
 } from '../components/ui/select';
 import { useToast } from '../components/ui/use-toast.jsx';
 import { ArrowLeft, Plus, RefreshCw, Edit, Download, Trash2, Upload, Play, Square, FileText } from 'lucide-react';
+import { Badge } from '../components/ui/badge';
 import Loading from '../components/Loading';
+import { useTranslation } from 'react-i18next';
 
 export default function DatasetDocuments() {
   const { datasetId } = useParams();
@@ -52,6 +55,7 @@ export default function DatasetDocuments() {
     },
   });
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   useEffect(() => {
     fetchDocuments();
@@ -66,15 +70,15 @@ export default function DatasetDocuments() {
         setTotal(response.data.total || 0);
       } else {
         toast({
-          title: 'Error',
-          description: response.data.error || 'Failed to fetch documents',
+          title: t('toast.error'),
+          description: response.data.error || t('documents.failedToFetch'),
           variant: 'destructive',
         });
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to fetch documents',
+        title: t('toast.error'),
+        description: error.response?.data?.error || t('documents.failedToFetch'),
         variant: 'destructive',
       });
     } finally {
@@ -90,8 +94,8 @@ export default function DatasetDocuments() {
   const handleUpload = async () => {
     if (selectedFiles.length === 0) {
       toast({
-        title: 'Error',
-        description: 'Please select at least one file to upload',
+        title: t('toast.error'),
+        description: t('documents.selectAtLeastOneFile'),
         variant: 'destructive',
       });
       return;
@@ -136,7 +140,7 @@ export default function DatasetDocuments() {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `http://46.224.35.114:5002/api/ragflow/datasets/${datasetId}/documents/${doc.id}`,
+        getApiUrl(`/ragflow/datasets/${datasetId}/documents/${doc.id}`),
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -222,23 +226,23 @@ export default function DatasetDocuments() {
 
       if (response.data.success) {
         toast({
-          title: 'Success',
-          description: 'Document updated successfully',
+          title: t('toast.success'),
+          description: t('documents.documentUpdated'),
         });
         setEditDialogOpen(false);
         setSelectedDocument(null);
         fetchDocuments();
       } else {
         toast({
-          title: 'Error',
-          description: response.data.error || 'Failed to update document',
+          title: t('toast.error'),
+          description: response.data.error || t('documents.failedToUpdate'),
           variant: 'destructive',
         });
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to update document',
+        title: t('toast.error'),
+        description: error.response?.data?.error || t('documents.failedToUpdate'),
         variant: 'destructive',
       });
     }
@@ -257,6 +261,98 @@ export default function DatasetDocuments() {
     return new Date(dateString).toLocaleString();
   };
 
+  const handleParseDocument = async (documentId) => {
+    try {
+      const response = await api.post(
+        `/ragflow/datasets/${datasetId}/chunks`,
+        {
+          document_ids: [documentId]
+        }
+      );
+
+      if (response.data.success) {
+        toast({
+          title: t('toast.success'),
+          description: t('documents.documentParseStarted'),
+        });
+        fetchDocuments();
+      } else {
+        toast({
+          title: t('toast.error'),
+          description: response.data.error || t('documents.failedToParse'),
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: t('toast.error'),
+        description: error.response?.data?.error || t('documents.failedToParse'),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleStopParseDocument = async (documentId) => {
+    try {
+      const response = await api.delete(
+        `/ragflow/datasets/${datasetId}/chunks`,
+        {
+          data: {
+            document_ids: [documentId]
+          }
+        }
+      );
+
+      if (response.data.success) {
+        toast({
+          title: t('toast.success'),
+          description: t('documents.documentParseStopped'),
+        });
+        fetchDocuments();
+      } else {
+        toast({
+          title: t('toast.error'),
+          description: response.data.error || t('documents.failedToStopParse'),
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: t('toast.error'),
+        description: error.response?.data?.error || t('documents.failedToStopParse'),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const isDocumentParsing = (document) => {
+    // Document is parsing if run exists and is not UNSTART or '0', and status is not 'DONE'
+    return document.run && 
+           document.run !== 'UNSTART' && 
+           document.run !== '0' && 
+           document.status !== 'DONE';
+  };
+
+  const isDocumentDone = (document) => {
+    // Document is done if status is 'DONE'
+    return document.status === 'DONE';
+  };
+
+  const isDocumentNotStarted = (document) => {
+    // Document hasn't started parsing yet
+    return document.run === 'UNSTART' || document.run === '0' || !document.run;
+  };
+
+  const shouldShowParseButton = (document) => {
+    // Show parse button only if status is not 'DONE'
+    return !isDocumentDone(document);
+  };
+
+  const shouldShowStopButton = (document) => {
+    // Show stop button only if currently parsing
+    return isDocumentParsing(document);
+  };
+
   if (loading) {
     return <Loading />;
   }
@@ -269,16 +365,16 @@ export default function DatasetDocuments() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Documents</h1>
+            <h1 className="text-2xl font-bold">{t('documents.title')}</h1>
             <p className="text-muted-foreground mt-1 text-sm">
-              Manage documents in this dataset ({total} total)
+              {t('documents.subtitle')} ({total} {t('documents.totalDocuments')})
             </p>
           </div>
         </div>
         <div className="flex space-x-2">
           <Button variant="outline" onClick={fetchDocuments}>
             <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+            {t('common.refresh')}
           </Button>
           {selectedDocumentIds.length > 0 && (
             <>
@@ -317,32 +413,34 @@ export default function DatasetDocuments() {
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>
-                  <input
-                    type="checkbox"
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedDocumentIds(documents.map(d => d.id));
-                      } else {
-                        setSelectedDocumentIds([]);
-                      }
-                    }}
-                    checked={selectedDocumentIds.length === documents.length && documents.length > 0}
-                  />
-                </TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Size</TableHead>
-                <TableHead>Chunk Method</TableHead>
-                <TableHead>Chunks</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="w-12">
+                    <input
+                      type="checkbox"
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedDocumentIds(documents.map(d => d.id));
+                        } else {
+                          setSelectedDocumentIds([]);
+                        }
+                      }}
+                      checked={selectedDocumentIds.length === documents.length && documents.length > 0}
+                      className="cursor-pointer"
+                    />
+                  </TableHead>
+                  <TableHead className="font-semibold">Name</TableHead>
+                  <TableHead className="font-semibold">Type</TableHead>
+                  <TableHead className="font-semibold">Size</TableHead>
+                  <TableHead className="font-semibold">Chunk Method</TableHead>
+                  <TableHead className="font-semibold text-center">Chunks</TableHead>
+                  <TableHead className="font-semibold text-center">Status</TableHead>
+                  <TableHead className="font-semibold">Created</TableHead>
+                  <TableHead className="text-right font-semibold">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
             <TableBody>
               {documents.length === 0 ? (
                 <TableRow>
@@ -352,7 +450,7 @@ export default function DatasetDocuments() {
                 </TableRow>
               ) : (
                 documents.map((document) => (
-                  <TableRow key={document.id}>
+                  <TableRow key={document.id} className="hover:bg-muted/50 transition-colors">
                     <TableCell>
                       <input
                         type="checkbox"
@@ -364,32 +462,87 @@ export default function DatasetDocuments() {
                             setSelectedDocumentIds(selectedDocumentIds.filter(id => id !== document.id));
                           }
                         }}
+                        className="cursor-pointer"
                       />
                     </TableCell>
-                    <TableCell className="font-medium">{document.name || document.location}</TableCell>
-                    <TableCell>{document.type || '-'}</TableCell>
-                    <TableCell>{formatFileSize(document.size)}</TableCell>
-                    <TableCell>{document.chunk_method || '-'}</TableCell>
-                    <TableCell>{document.chunk_count || 0}</TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        document.run === 'UNSTART' || document.run === '0' 
-                          ? 'bg-yellow-100 text-yellow-800' 
-                          : document.status === '1' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {document.run || document.status || 'Unknown'}
-                      </span>
+                    <TableCell className="font-medium py-4 max-w-xs truncate" title={document.name || document.location}>
+                      {document.name || document.location}
                     </TableCell>
-                    <TableCell>{formatDate(document.create_date)}</TableCell>
+                    <TableCell>
+                      {document.type ? (
+                        <Badge variant="outline" className="font-normal">
+                          {document.type}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{formatFileSize(document.size)}</TableCell>
+                    <TableCell>
+                      {document.chunk_method ? (
+                        <Badge variant="outline" className="font-normal">
+                          {document.chunk_method}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="secondary" className="font-semibold">
+                        {document.chunk_count || 0}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge 
+                        variant={
+                          document.run === 'UNSTART' || document.run === '0' 
+                            ? 'secondary'
+                            : document.status === '1' 
+                            ? 'default'
+                            : 'secondary'
+                        }
+                        className={
+                          document.run === 'UNSTART' || document.run === '0' 
+                            ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                            : document.status === '1' 
+                            ? 'bg-green-500 hover:bg-green-600 text-white'
+                            : ''
+                        }
+                      >
+                        {document.run || document.status || 'Unknown'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{formatDate(document.create_date)}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end space-x-2">
+                      <div className="flex justify-end space-x-1">
+                        {shouldShowStopButton(document) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleStopParseDocument(document.id)}
+                            title="Stop Parsing"
+                            className="h-8 w-8 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                          >
+                            <Square className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {shouldShowParseButton(document) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleParseDocument(document.id)}
+                            title="Start Parsing"
+                            className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                          >
+                            <Play className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => navigate(`/ragflow/datasets/${datasetId}/documents/${document.id}/chunks`)}
                           title="View Chunks"
+                          className="h-8 w-8"
                         >
                           <FileText className="h-4 w-4" />
                         </Button>
@@ -398,6 +551,7 @@ export default function DatasetDocuments() {
                           size="icon"
                           onClick={() => handleDownload(document)}
                           title="Download"
+                          className="h-8 w-8"
                         >
                           <Download className="h-4 w-4" />
                         </Button>
@@ -406,6 +560,7 @@ export default function DatasetDocuments() {
                           size="icon"
                           onClick={() => handleEdit(document)}
                           title="Edit"
+                          className="h-8 w-8"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -417,8 +572,9 @@ export default function DatasetDocuments() {
                             setDeleteDialogOpen(true);
                           }}
                           title="Delete"
+                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -427,6 +583,7 @@ export default function DatasetDocuments() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 

@@ -9,6 +9,7 @@ import { useToast } from '../components/ui/use-toast.jsx';
 import Loading from '../components/Loading';
 import { UserCircle, Mail, Edit, Lock, Shield } from 'lucide-react';
 import api from '../lib/api';
+import { useTranslation } from 'react-i18next';
 
 export default function AdminProfile() {
   const { user, fetchUser } = useAuth();
@@ -18,6 +19,7 @@ export default function AdminProfile() {
   const [saving, setSaving] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [formData, setFormData] = useState({
     email: ''
@@ -153,17 +155,17 @@ export default function AdminProfile() {
     <div className="space-y-6">
       <div className="py-2 flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">Profile Information</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Your account information</p>
+          <h1 className="text-2xl font-bold">{t('profile.title')}</h1>
+          <p className="text-muted-foreground mt-1 text-sm">{t('profile.subtitleAdmin')}</p>
         </div>
         <div className="flex space-x-2">
           <Button onClick={handleOpenEdit} variant="outline">
             <Edit className="h-4 w-4 mr-2" />
-            Edit Profile
+            {t('profile.editProfile')}
           </Button>
           <Button onClick={() => setPasswordDialogOpen(true)} variant="outline">
             <Lock className="h-4 w-4 mr-2" />
-            Change Password
+            {t('profile.changePassword')}
           </Button>
         </div>
       </div>

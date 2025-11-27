@@ -38,9 +38,24 @@ def admin_required(f):
 
 def admin_or_instructor_required(f):
     @wraps(f)
-    @jwt_required()
     def decorated_function(*args, **kwargs):
+        # Allow OPTIONS requests to pass through for CORS preflight
+        # Flask-CORS will handle adding the appropriate headers
+        if request.method == 'OPTIONS':
+            from flask import make_response
+            response = make_response('', 200)
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Max-Age'] = '3600'
+            return response
+        
+        # For other methods, require JWT authentication
         try:
+            from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+            verify_jwt_in_request()
+            
             print(f"\n[admin_or_instructor_required] Request to: {request.path}")
             print(f"[admin_or_instructor_required] Method: {request.method}")
             print(f"[admin_or_instructor_required] Headers: {dict(request.headers)}")

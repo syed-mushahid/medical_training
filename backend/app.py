@@ -57,17 +57,20 @@ def create_app():
         # Production: allow specific origins
         cors_origins = [origin.strip() for origin in cors_origins_env.split(',')]
     
-    # Always include the production frontend URL (without trailing slash)
-    production_frontend = 'http://46.224.35.114:3000'
-    if production_frontend not in cors_origins and '*' not in cors_origins:
-        cors_origins.append(production_frontend)
+    # Get frontend URL from environment
+    frontend_url = os.getenv('FRONTEND_URL', '').strip()
+    if frontend_url and frontend_url not in cors_origins and '*' not in cors_origins:
+        # Remove trailing slash if present
+        frontend_url = frontend_url.rstrip('/')
+        cors_origins.append(frontend_url)
     
     CORS(app, 
          resources={r"/api/*": {
              "origins": cors_origins, 
              "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
              "allow_headers": ["Content-Type", "Authorization"],
-             "supports_credentials": True
+             "supports_credentials": True,
+             "automatic_options": True
          }})
     
     # Register blueprints
@@ -85,6 +88,10 @@ def create_app():
     app.register_blueprint(student_profile_bp, url_prefix='/api')
     app.register_blueprint(instructor_profile_bp, url_prefix='/api')
     app.register_blueprint(admin_profile_bp, url_prefix='/api')
+    
+    # Import and register instructor dashboard blueprint
+    from routes.instructor_dashboard import instructor_dashboard_bp
+    app.register_blueprint(instructor_dashboard_bp, url_prefix='/api')
     
     # Error handler for bad requests
     @app.errorhandler(BadRequest)

@@ -16,6 +16,7 @@ import { Label } from '../components/ui/label';
 import { useToast } from '../components/ui/use-toast.jsx';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import Loading from '../components/Loading';
+import { useTranslation } from 'react-i18next';
 
 export default function Instructors() {
   const [instructors, setInstructors] = useState([]);
@@ -31,6 +32,7 @@ export default function Instructors() {
     ragflow_api_key: '',
   });
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   useEffect(() => {
     fetchInstructors();
@@ -41,9 +43,9 @@ export default function Instructors() {
       const response = await api.get('/instructors');
       setInstructors(response.data.instructors);
     } catch (error) {
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to fetch instructors';
+      const errorMessage = error.response?.data?.error || error.message || t('instructors.failedToFetch');
       toast({
-        title: 'Error',
+        title: t('toast.error'),
         description: errorMessage,
         variant: 'destructive',
       });
@@ -62,14 +64,14 @@ export default function Instructors() {
       if (editingInstructor) {
         await api.put(`/instructors/${editingInstructor.id}`, formData);
         toast({
-          title: 'Success',
-          description: 'Instructor updated successfully',
+          title: t('toast.success'),
+          description: t('instructors.instructorUpdated'),
         });
       } else {
         await api.post('/instructors', formData);
         toast({
-          title: 'Success',
-          description: 'Instructor created successfully',
+          title: t('toast.success'),
+          description: t('instructors.instructorCreated'),
         });
       }
       setDialogOpen(false);
@@ -77,8 +79,8 @@ export default function Instructors() {
       fetchInstructors();
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Operation failed',
+        title: t('toast.error'),
+        description: error.response?.data?.error || t('instructors.operationFailed'),
         variant: 'destructive',
       });
     }
@@ -98,20 +100,20 @@ export default function Instructors() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this instructor?')) {
+    if (!window.confirm(t('instructors.deleteConfirm'))) {
       return;
     }
     try {
       await api.delete(`/instructors/${id}`);
       toast({
-        title: 'Success',
-        description: 'Instructor deleted successfully',
+        title: t('toast.success'),
+        description: t('instructors.instructorDeleted'),
       });
       fetchInstructors();
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to delete instructor',
+        title: t('toast.error'),
+        description: t('instructors.failedToDelete'),
         variant: 'destructive',
       });
     }
@@ -142,12 +144,12 @@ export default function Instructors() {
     <div className="space-y-8">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Instructors</h1>
-          <p className="text-muted-foreground mt-2">Manage all instructors in the system</p>
+          <h1 className="text-3xl font-bold">{t('instructors.title')}</h1>
+          <p className="text-muted-foreground mt-2">{t('instructors.subtitle')}</p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Add Instructor
+          {t('instructors.addInstructor')}
         </Button>
       </div>
 
@@ -156,18 +158,18 @@ export default function Instructors() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>RAGFlow API Key</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t('common.name')}</TableHead>
+                <TableHead>{t('common.email')}</TableHead>
+                <TableHead>{t('common.phone')}</TableHead>
+                <TableHead>{t('instructors.ragflowApiKey')}</TableHead>
+                <TableHead className="text-right">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {instructors.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center">
-                    No instructors found
+                    {t('instructors.noInstructorsFound')}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -180,9 +182,9 @@ export default function Instructors() {
                     <TableCell>{instructor.phone || '-'}</TableCell>
                     <TableCell>
                       {instructor.ragflow_api_key ? (
-                        <span className="text-xs text-green-600">✓ Configured</span>
+                        <span className="text-xs text-green-600">✓ {t('instructors.configured')}</span>
                       ) : (
-                        <span className="text-xs text-muted-foreground">Not set</span>
+                        <span className="text-xs text-muted-foreground">{t('instructors.notSet')}</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
@@ -215,12 +217,12 @@ export default function Instructors() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingInstructor ? 'Edit Instructor' : 'Add New Instructor'}
+              {editingInstructor ? t('instructors.editInstructor') : t('instructors.addNewInstructor')}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('common.email')}</Label>
               <Input
                 id="email"
                 type="email"
@@ -231,7 +233,7 @@ export default function Instructors() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">
-                Password {editingInstructor && '(leave empty to keep current)'}
+                {editingInstructor ? t('students.passwordLeaveEmpty') : t('common.password')}
               </Label>
               <Input
                 id="password"
@@ -243,7 +245,7 @@ export default function Instructors() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="first_name">First Name</Label>
+                <Label htmlFor="first_name">{t('students.firstName')}</Label>
                 <Input
                   id="first_name"
                   value={formData.first_name}
@@ -252,7 +254,7 @@ export default function Instructors() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="last_name">Last Name</Label>
+                <Label htmlFor="last_name">{t('students.lastName')}</Label>
                 <Input
                   id="last_name"
                   value={formData.last_name}
@@ -262,7 +264,7 @@ export default function Instructors() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
+              <Label htmlFor="phone">{t('common.phone')}</Label>
               <Input
                 id="phone"
                 value={formData.phone}
@@ -270,23 +272,23 @@ export default function Instructors() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ragflow_api_key">RAGFlow API Key</Label>
+              <Label htmlFor="ragflow_api_key">{t('instructors.ragflowApiKey')}</Label>
               <Input
                 id="ragflow_api_key"
                 type="password"
                 value={formData.ragflow_api_key}
                 onChange={(e) => setFormData({ ...formData, ragflow_api_key: e.target.value })}
-                placeholder="Enter RAGFlow API key for this instructor"
+                placeholder={t('instructors.ragflowApiKeyPlaceholder')}
               />
               <p className="text-xs text-muted-foreground">
-                This API key will be used when this instructor creates datasets in RAGFlow
+                {t('instructors.ragflowApiKeyDesc')}
               </p>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleDialogClose}>
-                Cancel
+                {t('common.cancel')}
               </Button>
-              <Button type="submit">Save</Button>
+              <Button type="submit">{t('common.save')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

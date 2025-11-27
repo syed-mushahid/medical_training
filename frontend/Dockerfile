@@ -13,11 +13,15 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build argument for API URL
-ARG VITE_API_URL=http://46.224.35.114:5002/api
+# Build arguments for environment variables
+ARG VITE_API_URL=http://localhost:5000/api
+ARG VITE_FRONTEND_URL=http://localhost:3000
+ARG VITE_RAGFLOW_BASE_URL=http://localhost:80
 
-# Set environment variable for build
+# Set environment variables for build
 ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_FRONTEND_URL=$VITE_FRONTEND_URL
+ENV VITE_RAGFLOW_BASE_URL=$VITE_RAGFLOW_BASE_URL
 
 # Build the application
 RUN npm run build

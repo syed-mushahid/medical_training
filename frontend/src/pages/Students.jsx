@@ -14,14 +14,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { useToast } from '../components/ui/use-toast.jsx';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye } from 'lucide-react';
 import Loading from '../components/Loading';
+import { useTranslation } from 'react-i18next';
+import { MultiSelect } from '../components/ui/multi-select';
+import { cn } from '../lib/utils';
 
 export default function Students() {
   const [students, setStudents] = useState([]);
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [selectedStudentDetails, setSelectedStudentDetails] = useState(null);
   const [editingStudent, setEditingStudent] = useState(null);
   const [formData, setFormData] = useState({
     email: '',
@@ -34,6 +39,7 @@ export default function Students() {
     group_ids: [],
   });
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   useEffect(() => {
     fetchStudents();
@@ -46,8 +52,8 @@ export default function Students() {
       setStudents(response.data.students);
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to fetch students',
+        title: t('toast.error'),
+        description: t('students.failedToFetch'),
         variant: 'destructive',
       });
     } finally {
@@ -75,14 +81,14 @@ export default function Students() {
       if (editingStudent) {
         await api.put(`/students/${editingStudent.id}`, submitData);
         toast({
-          title: 'Success',
-          description: 'Student updated successfully',
+          title: t('toast.success'),
+          description: t('students.studentUpdated'),
         });
       } else {
         await api.post('/students', submitData);
         toast({
-          title: 'Success',
-          description: 'Student created successfully',
+          title: t('toast.success'),
+          description: t('students.studentCreated'),
         });
       }
       setDialogOpen(false);
@@ -90,8 +96,8 @@ export default function Students() {
       fetchStudents();
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Operation failed',
+        title: t('toast.error'),
+        description: error.response?.data?.error || t('students.operationFailed'),
         variant: 'destructive',
       });
     }
@@ -113,20 +119,20 @@ export default function Students() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this student?')) {
+    if (!window.confirm(t('students.deleteConfirm'))) {
       return;
     }
     try {
       await api.delete(`/students/${id}`);
       toast({
-        title: 'Success',
-        description: 'Student deleted successfully',
+        title: t('toast.success'),
+        description: t('students.studentDeleted'),
       });
       fetchStudents();
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to delete student',
+        title: t('toast.error'),
+        description: t('students.failedToDelete'),
         variant: 'destructive',
       });
     }
@@ -151,14 +157,11 @@ export default function Students() {
     resetForm();
   };
 
-  const toggleGroup = (groupId) => {
-    setFormData({
-      ...formData,
-      group_ids: formData.group_ids.includes(groupId)
-        ? formData.group_ids.filter(id => id !== groupId)
-        : [...formData.group_ids, groupId],
-    });
+  const handleViewDetails = (student) => {
+    setSelectedStudentDetails(student);
+    setDetailsDialogOpen(true);
   };
+
 
   if (loading) {
     return <Loading />;
@@ -168,12 +171,12 @@ export default function Students() {
     <div className="space-y-8">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Students</h1>
-          <p className="text-muted-foreground mt-2">Manage all students in the system</p>
+          <h1 className="text-3xl font-bold">{t('students.title')}</h1>
+          <p className="text-muted-foreground mt-2">{t('students.subtitle')}</p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Add Student
+          {t('students.addStudent')}
         </Button>
       </div>
 
@@ -182,44 +185,83 @@ export default function Students() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Date of Birth</TableHead>
-                <TableHead>Groups</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t('students.studentId')}</TableHead>
+                <TableHead>{t('common.name')}</TableHead>
+                <TableHead>{t('common.email')}</TableHead>
+                <TableHead>{t('common.phone')}</TableHead>
+                <TableHead>{t('students.dateOfBirth')}</TableHead>
+                <TableHead>{t('students.groups')}</TableHead>
+                <TableHead className="text-right">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {students.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
-                    No students found
+                  <TableCell colSpan={7} className="text-center py-8">
+                    <p className="text-muted-foreground">{t('students.noStudentsFound')}</p>
                   </TableCell>
                 </TableRow>
               ) : (
                 students.map((student) => (
-                  <TableRow key={student.id}>
+                  <TableRow key={student.id} className="hover:bg-muted/50">
                     <TableCell className="font-medium">
-                      {student.student_id || '-'}
+                      {student.student_id || (
+                        <span className="text-muted-foreground italic">-</span>
+                      )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="font-medium">
                       {student.first_name} {student.last_name}
                     </TableCell>
-                    <TableCell>{student.user?.email}</TableCell>
-                    <TableCell>{student.phone || '-'}</TableCell>
-                    <TableCell>{student.date_of_birth || '-'}</TableCell>
+                    <TableCell>{student.user?.email || '-'}</TableCell>
+                    <TableCell>{student.phone || (
+                      <span className="text-muted-foreground">-</span>
+                    )}</TableCell>
                     <TableCell>
-                      {student.groups?.length > 0
-                        ? student.groups.map(g => g.name).join(', ')
-                        : '-'}
+                      {student.date_of_birth ? (
+                        new Date(student.date_of_birth).toLocaleDateString()
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {student.groups?.length > 0 ? (
+                        student.groups.length > 2 ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                            {student.groups.length} {t('students.groups')}
+                          </span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {student.groups.map((group) => (
+                              <span
+                                key={group.id}
+                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20"
+                              >
+                                {group.name}
+                              </span>
+                            ))}
+                          </div>
+                        )
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end space-x-2">
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() => handleViewDetails(student)}
+                          className="h-8 w-8"
+                          title={t('students.viewDetails')}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => handleEdit(student)}
+                          className="h-8 w-8"
+                          title={t('common.edit')}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -227,8 +269,10 @@ export default function Students() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDelete(student.id)}
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          title={t('common.delete')}
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -244,12 +288,12 @@ export default function Students() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingStudent ? 'Edit Student' : 'Add New Student'}
+              {editingStudent ? t('students.editStudent') : t('students.addNewStudent')}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('common.email')}</Label>
               <Input
                 id="email"
                 type="email"
@@ -260,7 +304,7 @@ export default function Students() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">
-                Password {editingStudent && '(leave empty to keep current)'}
+                {editingStudent ? t('students.passwordLeaveEmpty') : t('common.password')}
               </Label>
               <Input
                 id="password"
@@ -271,17 +315,17 @@ export default function Students() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="student_id">Student ID</Label>
+              <Label htmlFor="student_id">{t('students.studentId')}</Label>
               <Input
                 id="student_id"
                 value={formData.student_id}
                 onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
-                placeholder="e.g., STU001, 2024001"
+                placeholder={t('students.studentIdPlaceholder')}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="first_name">First Name</Label>
+                <Label htmlFor="first_name">{t('students.firstName')}</Label>
                 <Input
                   id="first_name"
                   value={formData.first_name}
@@ -290,7 +334,7 @@ export default function Students() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="last_name">Last Name</Label>
+                <Label htmlFor="last_name">{t('students.lastName')}</Label>
                 <Input
                   id="last_name"
                   value={formData.last_name}
@@ -301,7 +345,7 @@ export default function Students() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
+                <Label htmlFor="phone">{t('common.phone')}</Label>
                 <Input
                   id="phone"
                   value={formData.phone}
@@ -309,7 +353,7 @@ export default function Students() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="date_of_birth">Date of Birth</Label>
+                <Label htmlFor="date_of_birth">{t('students.dateOfBirth')}</Label>
                 <Input
                   id="date_of_birth"
                   type="date"
@@ -319,37 +363,149 @@ export default function Students() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Student Groups</Label>
-              <div className="border rounded-md p-4 max-h-48 overflow-y-auto">
-                {groups.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No groups available</p>
-                ) : (
-                  <div className="space-y-2">
-                    {groups.map((group) => (
-                      <label key={group.id} className="flex items-center space-x-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.group_ids.includes(group.id)}
-                          onChange={() => toggleGroup(group.id)}
-                          className="rounded border-gray-300"
-                        />
-                        <span className="text-sm">{group.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <Label>{t('students.groups')}</Label>
+              {groups.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2">{t('students.noGroupsAvailable')}</p>
+              ) : (
+                <MultiSelect
+                  options={groups.map((group) => ({
+                    value: group.id,
+                    label: group.name,
+                  }))}
+                  selected={formData.group_ids}
+                  onChange={(selectedIds) => {
+                    setFormData({ ...formData, group_ids: selectedIds });
+                  }}
+                  placeholder={t('students.selectGroups') || "Select groups..."}
+                  searchPlaceholder={t('students.searchGroups') || "Search groups..."}
+                  emptyMessage={t('students.noGroupsFound') || "No groups found"}
+                />
+              )}
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleDialogClose}>
-                Cancel
+                {t('common.cancel')}
               </Button>
-              <Button type="submit">Save</Button>
+              <Button type="submit">{t('common.save')}</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Student Details Dialog */}
+      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {t('students.studentDetails')} - {selectedStudentDetails?.first_name} {selectedStudentDetails?.last_name}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedStudentDetails && (
+            <div className="space-y-6 py-4">
+              {/* Personal Information */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3">{t('students.personalInformation')}</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">{t('students.studentId')}</p>
+                    <p className="text-sm font-medium">
+                      {selectedStudentDetails.student_id || (
+                        <span className="text-muted-foreground italic">-</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">{t('common.name')}</p>
+                    <p className="text-sm font-medium">
+                      {selectedStudentDetails.first_name} {selectedStudentDetails.last_name}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">{t('common.email')}</p>
+                    <p className="text-sm font-medium">
+                      {selectedStudentDetails.user?.email || (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">{t('common.phone')}</p>
+                    <p className="text-sm font-medium">
+                      {selectedStudentDetails.phone || (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">{t('students.dateOfBirth')}</p>
+                    <p className="text-sm font-medium">
+                      {selectedStudentDetails.date_of_birth ? (
+                        new Date(selectedStudentDetails.date_of_birth).toLocaleDateString()
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Groups Section */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3">
+                  {t('students.groups')} ({selectedStudentDetails.groups?.length || 0})
+                </h3>
+                {selectedStudentDetails.groups?.length > 0 ? (
+                  <div className="space-y-2">
+                    {selectedStudentDetails.groups.map((group) => (
+                      <div
+                        key={group.id}
+                        className="flex items-center justify-between p-3 rounded-lg border bg-primary/5 border-primary/20"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <span className="text-sm font-medium text-primary">
+                              {group.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">{group.name}</p>
+                            {group.description && (
+                              <p className="text-xs text-muted-foreground">{group.description}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                          {group.students && (
+                            <span className="px-2 py-1 rounded bg-blue-100 text-blue-700">
+                              {group.students.length} {t('studentGroups.students')}
+                            </span>
+                          )}
+                          {group.instructors && (
+                            <span className="px-2 py-1 rounded bg-green-100 text-green-700">
+                              {group.instructors.length} {t('studentGroups.instructors')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground py-4 text-center">
+                    {t('students.noGroupsAssigned')}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailsDialogOpen(false)}>
+              {t('common.close')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
+
 

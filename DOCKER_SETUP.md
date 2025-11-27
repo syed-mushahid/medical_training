@@ -42,7 +42,7 @@ This guide will help you run the Medical Training Portal using Docker.
    DB_NAME=training_portal
 
    # Backend Configuration
-   BACKEND_PORT=5002
+   BACKEND_PORT=5000
    JWT_SECRET_KEY=dev-secret-key-change-in-production
    RAGFLOW_BASE_URL=http://localhost:80
    RAGFLOW_API_KEY=
@@ -50,7 +50,7 @@ This guide will help you run the Medical Training Portal using Docker.
 
    # Frontend Configuration
    FRONTEND_PORT=3000
-   VITE_API_URL=http://localhost:5002/api
+   VITE_API_URL=http://localhost:5000/api
    ```
 
 3. **Build and start all services**:
@@ -62,7 +62,7 @@ This guide will help you run the Medical Training Portal using Docker.
 
 3. **Access the application**:
    - Frontend: http://localhost:3000
-   - Backend API: http://localhost:5002
+   - Backend API: http://localhost:5000
    - **Note**: This project uses an external MySQL database. See `EXTERNAL_MYSQL_SETUP.md` for configuration details.
 
 ## Important Notes
@@ -71,8 +71,8 @@ This guide will help you run the Medical Training Portal using Docker.
 
 The `VITE_API_URL` environment variable should point to where the backend is accessible **from your browser**, not from within Docker containers.
 
-- **Local development**: Use `http://localhost:5002/api`
-- **Production**: Use your server's domain/IP (e.g., `http://your-server.com:5002/api`)
+- **Local development**: Use `http://localhost:5000/api`
+- **Production**: Use your server's domain/IP (e.g., `http://your-server.com:5000/api`)
 
 ### External MySQL Database
 

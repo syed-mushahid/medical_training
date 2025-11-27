@@ -84,7 +84,7 @@ export default function ChatSessions() {
     if (!formData.name.trim()) {
       toast({
         title: 'Error',
-        description: 'Session name is required',
+        description: 'Chat name is required',
         variant: 'destructive',
       });
       return;
@@ -96,7 +96,7 @@ export default function ChatSessions() {
       if (response.data.success) {
         toast({
           title: 'Success',
-          description: 'Session created successfully',
+          description: 'Chat created successfully',
         });
         setDialogOpen(false);
         resetForm();
@@ -104,7 +104,7 @@ export default function ChatSessions() {
       } else {
         toast({
           title: 'Error',
-          description: response.data.error || 'Failed to create session',
+          description: response.data.error || 'Failed to create chat',
           variant: 'destructive',
         });
       }
@@ -132,7 +132,7 @@ export default function ChatSessions() {
     if (!formData.name.trim()) {
       toast({
         title: 'Error',
-        description: 'Session name is required',
+        description: 'Chat name is required',
         variant: 'destructive',
       });
       return;
@@ -144,7 +144,7 @@ export default function ChatSessions() {
       if (response.data.success) {
         toast({
           title: 'Success',
-          description: 'Session updated successfully',
+          description: 'Chat updated successfully',
         });
         setEditDialogOpen(false);
         setSelectedSession(null);
@@ -153,7 +153,7 @@ export default function ChatSessions() {
       } else {
         toast({
           title: 'Error',
-          description: response.data.error || 'Failed to update session',
+          description: response.data.error || 'Failed to update chat',
           variant: 'destructive',
         });
       }
@@ -175,7 +175,7 @@ export default function ChatSessions() {
       if (response.data.success) {
         toast({
           title: 'Success',
-          description: 'Session deleted successfully',
+          description: 'Chat deleted successfully',
         });
         setDeleteDialogOpen(false);
         setSelectedSession(null);
@@ -205,7 +205,7 @@ export default function ChatSessions() {
       } else {
         toast({
           title: 'Error',
-          description: 'Please select at least one session to delete',
+          description: 'Please select at least one chat to delete',
           variant: 'destructive',
         });
         return;
@@ -218,7 +218,7 @@ export default function ChatSessions() {
       if (response.data.success) {
         toast({
           title: 'Success',
-          description: `${idsToDelete.length} session(s) deleted successfully`,
+          description: `${idsToDelete.length} chat(s) deleted successfully`,
         });
         setBulkDeleteDialogOpen(false);
         setSelectedSessions([]);
@@ -226,7 +226,7 @@ export default function ChatSessions() {
       } else {
         toast({
           title: 'Error',
-          description: response.data.error || 'Failed to delete sessions',
+          description: response.data.error || 'Failed to delete chats',
           variant: 'destructive',
         });
       }
@@ -274,9 +274,9 @@ export default function ChatSessions() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Chat Sessions</h1>
+            <h1 className="text-2xl font-bold">Chats</h1>
             <p className="text-muted-foreground mt-1 text-sm">
-              {chatInfo ? `Managing sessions for: ${chatInfo.name}` : `Chat ID: ${chatId}`}
+              {chatInfo ? `Managing chats for: ${chatInfo.name}` : `Chat ID: ${chatId}`}
             </p>
           </div>
         </div>
@@ -296,7 +296,7 @@ export default function ChatSessions() {
           )}
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Create Session
+            Create Chat
           </Button>
         </div>
       </div>
@@ -327,7 +327,7 @@ export default function ChatSessions() {
               {sessions.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center">
-No sessions found
+No chats found
                   </TableCell>
                 </TableRow>
               ) : (
@@ -432,11 +432,11 @@ No sessions found
         </CardContent>
       </Card>
 
-      {/* Create Session Dialog */}
+      {/* Create Chat Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Session</DialogTitle>
+            <DialogTitle>Create Chat</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -445,7 +445,7 @@ No sessions found
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter session name"
+                placeholder="Enter chat name"
                 required
               />
             </div>
@@ -465,17 +465,17 @@ No sessions found
               }}>
                 Cancel
               </Button>
-              <Button type="submit">Create Session</Button>
+              <Button type="submit">Create Chat</Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Session Dialog */}
+      {/* Edit Chat Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Session</DialogTitle>
+            <DialogTitle>Edit Chat</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleUpdate} className="space-y-4">
             <div className="space-y-2">
@@ -484,7 +484,7 @@ No sessions found
                 id="edit-name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter session name"
+                placeholder="Enter chat name"
                 required
               />
             </div>
@@ -505,7 +505,7 @@ No sessions found
               }}>
                 Cancel
               </Button>
-              <Button type="submit">Update Session</Button>
+              <Button type="submit">Update Chat</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -515,7 +515,7 @@ No sessions found
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Session</DialogTitle>
+            <DialogTitle>Delete Chat</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             Are you sure you want to delete "{selectedSession?.name}"? This action cannot be undone.
@@ -538,10 +538,10 @@ No sessions found
       <Dialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Sessions</DialogTitle>
+            <DialogTitle>Delete Chats</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Are you sure you want to delete {selectedSessions.length} session(s)? This action cannot be undone.
+            Are you sure you want to delete {selectedSessions.length} chat(s)? This action cannot be undone.
           </p>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => {
@@ -550,7 +550,7 @@ No sessions found
               Cancel
             </Button>
             <Button type="button" variant="destructive" onClick={handleBulkDelete}>
-              Delete {selectedSessions.length} Session(s)
+              Delete {selectedSessions.length} Chat(s)
             </Button>
           </DialogFooter>
         </DialogContent>

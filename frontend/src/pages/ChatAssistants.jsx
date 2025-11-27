@@ -22,9 +22,15 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { useToast } from '../components/ui/use-toast.jsx';
-import { Plus, RefreshCw, Edit, Trash2, MessageSquare, UserCheck } from 'lucide-react';
+import { Plus, RefreshCw, Edit, Trash2, MessageSquare, UserCheck, Info } from 'lucide-react';
 import { Textarea } from '../components/ui/textarea';
+import { Slider } from '../components/ui/slider';
+import { Switch } from '../components/ui/switch';
+import { MultiSelect } from '../components/ui/multi-select';
 import Loading from '../components/Loading';
+import { useTranslation } from 'react-i18next';
+import AvatarSelector from '../components/AvatarSelector';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../components/ui/tooltip';
 
 export default function ChatAssistants() {
   const navigate = useNavigate();
@@ -39,6 +45,7 @@ export default function ChatAssistants() {
   const [selectedChats, setSelectedChats] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
+    description: '',
     avatar: '',
     dataset_ids: [],
     llm: {
@@ -47,22 +54,24 @@ export default function ChatAssistants() {
       top_p: 0.3,
       presence_penalty: 0.4,
       frequency_penalty: 0.7,
+      reasoning: false,
     },
     prompt: {
       similarity_threshold: 0.2,
       keywords_similarity_weight: 0.7,
       top_n: 6,
       variables: [{ key: 'knowledge', optional: true }],
-      rerank_model: '',
       empty_response: 'Sorry! No relevant content was found in the knowledge base!',
       opener: 'Hi! I am your assistant, can I help you?',
       show_quote: true,
       prompt: 'You are an intelligent assistant. Please summarize the content of the knowledge base to answer the question. Please list the data in the knowledge base and answer in detail. When all knowledge base content is irrelevant to the question, your answer must include the sentence "The answer you are looking for is not found in the knowledge base!" Answers need to consider chat history.',
       top_k: 1024,
+      keyword_analysis: false,
+      cross_languages: [],
     },
   });
-  const [datasetInput, setDatasetInput] = useState('');
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   useEffect(() => {
     fetchChats();
@@ -77,15 +86,15 @@ export default function ChatAssistants() {
         setChats(response.data.chats || []);
       } else {
         toast({
-          title: 'Error',
-          description: response.data.error || 'Failed to fetch chat assistants',
+          title: t('toast.error'),
+          description: response.data.error || t('chatAssistants.failedToFetch'),
           variant: 'destructive',
         });
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to fetch chat assistants',
+        title: t('toast.error'),
+        description: error.response?.data?.error || t('chatAssistants.failedToFetch'),
         variant: 'destructive',
       });
     } finally {
@@ -104,22 +113,6 @@ export default function ChatAssistants() {
     }
   };
 
-  const handleAddDataset = () => {
-    if (datasetInput.trim()) {
-      setFormData({
-        ...formData,
-        dataset_ids: [...formData.dataset_ids, datasetInput.trim()],
-      });
-      setDatasetInput('');
-    }
-  };
-
-  const handleRemoveDataset = (index) => {
-    setFormData({
-      ...formData,
-      dataset_ids: formData.dataset_ids.filter((_, i) => i !== index),
-    });
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -138,23 +131,23 @@ export default function ChatAssistants() {
 
       if (response.data.success) {
         toast({
-          title: 'Success',
-          description: 'Chat assistant created successfully',
+          title: t('toast.success'),
+          description: t('chatAssistants.createdSuccessfully'),
         });
         setDialogOpen(false);
         resetForm();
         fetchChats();
       } else {
         toast({
-          title: 'Error',
-          description: response.data.error || 'Failed to create chat assistant',
+          title: t('toast.error'),
+          description: response.data.error || t('chatAssistants.failedToCreate'),
           variant: 'destructive',
         });
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to create chat assistant',
+        title: t('toast.error'),
+        description: error.response?.data?.error || t('chatAssistants.failedToCreate'),
         variant: 'destructive',
       });
     }
@@ -162,28 +155,54 @@ export default function ChatAssistants() {
 
   const handleEdit = (chat) => {
     setSelectedChat(chat);
+    
+    // Extract dataset IDs from datasets array
+    const datasetIds = chat.datasets && Array.isArray(chat.datasets) 
+      ? chat.datasets.map(ds => ds.id) 
+      : (chat.dataset_ids || []);
+    
+    // Normalize cross_languages - ensure they match the capitalized format
+    const normalizeCrossLanguages = (languages) => {
+      if (!languages || !Array.isArray(languages)) return [];
+      // Valid language values (capitalized)
+      const validLanguages = ['English', 'Chinese', 'Spanish', 'French', 'German', 'Japanese', 'Korean', 'Vietnamese'];
+      return languages.map(lang => {
+        const langStr = String(lang).trim();
+        // Check if already in correct format
+        if (validLanguages.includes(langStr)) {
+          return langStr;
+        }
+        // Try to match by case-insensitive comparison
+        const matched = validLanguages.find(v => v.toLowerCase() === langStr.toLowerCase());
+        return matched || langStr; // Return matched or original if not found
+      }).filter(lang => validLanguages.includes(lang)); // Filter out invalid languages
+    };
+    
     setFormData({
       name: chat.name || '',
+      description: chat.description || '',
       avatar: chat.avatar || '',
-      dataset_ids: chat.dataset_ids || [],
-      llm: chat.llm || {
-        model_name: '',
-        temperature: 0.1,
-        top_p: 0.3,
-        presence_penalty: 0.4,
-        frequency_penalty: 0.7,
+      dataset_ids: datasetIds,
+      llm: {
+        model_name: chat.llm?.model_name || '',
+        temperature: chat.llm?.temperature ?? 0.1,
+        top_p: chat.llm?.top_p ?? 0.3,
+        presence_penalty: chat.llm?.presence_penalty ?? 0.4,
+        frequency_penalty: chat.llm?.frequency_penalty ?? 0.7,
+        reasoning: chat.llm?.reasoning ?? chat.prompt?.reasoning ?? false,
       },
-      prompt: chat.prompt || {
-        similarity_threshold: 0.2,
-        keywords_similarity_weight: 0.7,
-        top_n: 6,
-        variables: [{ key: 'knowledge', optional: true }],
-        rerank_model: '',
-        empty_response: '',
-        opener: '',
-        show_quote: true,
-        prompt: '',
-        top_k: 1024,
+      prompt: {
+        similarity_threshold: chat.prompt?.similarity_threshold ?? 0.2,
+        keywords_similarity_weight: chat.prompt?.keywords_similarity_weight ?? 0.7,
+        top_n: chat.prompt?.top_n ?? 6,
+        variables: chat.prompt?.variables || [{ key: 'knowledge', optional: true }],
+        empty_response: chat.prompt?.empty_response || '',
+        opener: chat.prompt?.opener || '',
+        show_quote: chat.prompt?.show_quote !== false,
+        prompt: chat.prompt?.prompt || '',
+        top_k: chat.prompt?.top_k ?? chat.top_k ?? 1024,
+        keyword_analysis: chat.prompt?.keyword_analysis ?? chat.prompt?.keyword ?? false,
+        cross_languages: normalizeCrossLanguages(chat.prompt?.cross_languages),
       },
     });
     setEditDialogOpen(true);
@@ -194,8 +213,8 @@ export default function ChatAssistants() {
 
     if (!formData.name.trim()) {
       toast({
-        title: 'Error',
-        description: 'Chat name is required',
+        title: t('toast.error'),
+        description: t('chatAssistants.nameRequired'),
         variant: 'destructive',
       });
       return;
@@ -206,8 +225,8 @@ export default function ChatAssistants() {
 
       if (response.data.success) {
         toast({
-          title: 'Success',
-          description: 'Chat assistant updated successfully',
+          title: t('toast.success'),
+          description: t('chatAssistants.updatedSuccessfully'),
         });
         setEditDialogOpen(false);
         setSelectedChat(null);
@@ -215,15 +234,15 @@ export default function ChatAssistants() {
         fetchChats();
       } else {
         toast({
-          title: 'Error',
-          description: response.data.error || 'Failed to update chat assistant',
+          title: t('toast.error'),
+          description: response.data.error || t('chatAssistants.failedToUpdate'),
           variant: 'destructive',
         });
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to update chat assistant',
+        title: t('toast.error'),
+        description: error.response?.data?.error || t('chatAssistants.failedToUpdate'),
         variant: 'destructive',
       });
     }
@@ -237,23 +256,23 @@ export default function ChatAssistants() {
 
       if (response.data.success) {
         toast({
-          title: 'Success',
-          description: 'Chat assistant deleted successfully',
+          title: t('toast.success'),
+          description: t('chatAssistants.deletedSuccessfully'),
         });
         setDeleteDialogOpen(false);
         setSelectedChat(null);
         fetchChats();
       } else {
         toast({
-          title: 'Error',
-          description: response.data.error || 'Failed to delete chat assistant',
+          title: t('toast.error'),
+          description: response.data.error || t('chatAssistants.failedToDelete'),
           variant: 'destructive',
         });
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to delete chat assistant',
+        title: t('toast.error'),
+        description: error.response?.data?.error || t('chatAssistants.failedToDelete'),
         variant: 'destructive',
       });
     }
@@ -267,8 +286,8 @@ export default function ChatAssistants() {
         idsToDelete = selectedChats;
       } else {
         toast({
-          title: 'Error',
-          description: 'Please select at least one chat assistant to delete',
+          title: t('toast.error'),
+          description: t('chatAssistants.selectAtLeastOne'),
           variant: 'destructive',
         });
         return;
@@ -280,23 +299,23 @@ export default function ChatAssistants() {
 
       if (response.data.success) {
         toast({
-          title: 'Success',
-          description: `${idsToDelete.length} chat assistant(s) deleted successfully`,
+          title: t('toast.success'),
+          description: t('chatAssistants.bulkDeletedSuccessfully', { count: idsToDelete.length }),
         });
         setBulkDeleteDialogOpen(false);
         setSelectedChats([]);
         fetchChats();
       } else {
         toast({
-          title: 'Error',
-          description: response.data.error || 'Failed to delete chat assistants',
+          title: t('toast.error'),
+          description: response.data.error || t('chatAssistants.failedToBulkDelete'),
           variant: 'destructive',
         });
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to delete chat assistants',
+        title: t('toast.error'),
+        description: error.response?.data?.error || t('chatAssistants.failedToBulkDelete'),
         variant: 'destructive',
       });
     }
@@ -321,6 +340,7 @@ export default function ChatAssistants() {
   const resetForm = () => {
     setFormData({
       name: '',
+      description: '',
       avatar: '',
       dataset_ids: [],
       llm: {
@@ -329,21 +349,22 @@ export default function ChatAssistants() {
         top_p: 0.3,
         presence_penalty: 0.4,
         frequency_penalty: 0.7,
+        reasoning: false,
       },
       prompt: {
         similarity_threshold: 0.2,
         keywords_similarity_weight: 0.7,
         top_n: 6,
         variables: [{ key: 'knowledge', optional: true }],
-        rerank_model: '',
         empty_response: 'Sorry! No relevant content was found in the knowledge base!',
         opener: 'Hi! I am your assistant, can I help you?',
         show_quote: true,
         prompt: 'You are an intelligent assistant. Please summarize the content of the knowledge base to answer the question. Please list the data in the knowledge base and answer in detail. When all knowledge base content is irrelevant to the question, your answer must include the sentence "The answer you are looking for is not found in the knowledge base!" Answers need to consider chat history.',
         top_k: 1024,
+        keyword_analysis: false,
+        cross_languages: [],
       },
     });
-    setDatasetInput('');
   };
 
   if (loading) {
@@ -354,13 +375,13 @@ export default function ChatAssistants() {
     <div className="space-y-6">
       <div className="flex justify-between items-center py-2">
         <div>
-          <h1 className="text-2xl font-bold">Chat Assistants</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Manage chat assistants</p>
+          <h1 className="text-2xl font-bold">{t('chatAssistants.title')}</h1>
+          <p className="text-muted-foreground mt-1 text-sm">{t('chatAssistants.subtitle')}</p>
         </div>
         <div className="flex space-x-2">
           <Button variant="outline" onClick={fetchChats}>
             <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+            {t('common.refresh')}
           </Button>
           {selectedChats.length > 0 && (
             <Button
@@ -368,12 +389,12 @@ export default function ChatAssistants() {
               onClick={() => setBulkDeleteDialogOpen(true)}
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Delete Selected ({selectedChats.length})
+              {t('chatAssistants.deleteSelected')} ({selectedChats.length})
             </Button>
           )}
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Create Chat Assistant
+            {t('chatAssistants.createChatAssistant')}
           </Button>
         </div>
       </div>
@@ -391,18 +412,19 @@ export default function ChatAssistants() {
                     className="rounded"
                   />
                 </TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Dataset IDs</TableHead>
-                <TableHead>LLM Model</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t('chatAssistants.name')}</TableHead>
+                <TableHead>{t('chatAssistants.description')}</TableHead>
+                <TableHead>{t('chatAssistants.datasetIds')}</TableHead>
+                <TableHead>{t('chatAssistants.llmModel')}</TableHead>
+                <TableHead>{t('chatAssistants.status')}</TableHead>
+                <TableHead className="text-right">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {chats.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">
-                    No chat assistants found
+                  <TableCell colSpan={7} className="text-center">
+                    {t('chatAssistants.noChatAssistantsFound')}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -416,7 +438,27 @@ export default function ChatAssistants() {
                         className="rounded"
                       />
                     </TableCell>
-                    <TableCell className="font-medium">{chat.name || '-'}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-3">
+                        {chat.avatar ? (
+                          <img 
+                            src={chat.avatar} 
+                            alt={chat.name || 'Avatar'} 
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <MessageSquare className="h-5 w-5 text-primary" />
+                          </div>
+                        )}
+                        <span className="font-medium">{chat.name || '-'}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="max-w-xs">
+                      <p className="text-sm text-muted-foreground truncate">
+                        {chat.description || '-'}
+                      </p>
+                    </TableCell>
                     <TableCell>
                       {chat.dataset_ids && chat.dataset_ids.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
@@ -444,7 +486,7 @@ export default function ChatAssistants() {
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {chat.status === '1' ? 'Active' : 'Inactive'}
+                        {chat.status === '1' ? t('chatAssistants.active') : t('chatAssistants.inactive')}
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
@@ -453,7 +495,7 @@ export default function ChatAssistants() {
                           variant="ghost"
                           size="icon"
                           onClick={() => navigate(`/ragflow/chats/${chat.id}/assignments`)}
-                          title="Manage Assignments"
+                          title={t('chatAssistants.manageAssignments')}
                         >
                           <UserCheck className="h-4 w-4" />
                         </Button>
@@ -461,7 +503,7 @@ export default function ChatAssistants() {
                           variant="ghost"
                           size="icon"
                           onClick={() => navigate(`/ragflow/chats/${chat.id}/sessions`)}
-                          title="View Sessions"
+                          title={t('chatAssistants.viewSessions')}
                         >
                           <MessageSquare className="h-4 w-4" />
                         </Button>
@@ -469,7 +511,7 @@ export default function ChatAssistants() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEdit(chat)}
-                          title="Edit"
+                          title={t('common.edit')}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -480,7 +522,7 @@ export default function ChatAssistants() {
                             setSelectedChat(chat);
                             setDeleteDialogOpen(true);
                           }}
-                          title="Delete"
+                          title={t('common.delete')}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -496,212 +538,440 @@ export default function ChatAssistants() {
 
       {/* Create Chat Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create Chat Assistant</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Enter chat assistant name"
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <div className="overflow-y-auto max-h-[calc(90vh-8rem)]">
+            <DialogHeader>
+              <DialogTitle>{t('chatAssistants.createChatAssistant')}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <TooltipProvider>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="name">{t('chatAssistants.name')} *</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="text-muted-foreground hover:text-foreground">
+                          <Info className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>{t('chatAssistants.tooltips.name')}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder={t('chatAssistants.namePlaceholder')}
                   required
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="avatar">Avatar (Base64)</Label>
-                <Input
-                  id="avatar"
-                  value={formData.avatar}
-                  onChange={(e) => setFormData({ ...formData, avatar: e.target.value })}
-                  placeholder="Base64 encoded avatar"
-                />
-              </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="description">{t('chatAssistants.description')}</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="text-muted-foreground hover:text-foreground">
+                          <Info className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>{t('chatAssistants.tooltips.description')}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder={t('chatAssistants.descriptionPlaceholder')}
+                rows={3}
+              />
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="datasets">Dataset IDs</Label>
-              <div className="flex space-x-2">
-                <Select value={datasetInput} onValueChange={setDatasetInput}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a dataset" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {datasets.map((dataset) => (
-                      <SelectItem key={dataset.id} value={dataset.id}>
-                        {dataset.name} ({dataset.id.substring(0, 8)}...)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button type="button" onClick={handleAddDataset}>
-                  Add
-                </Button>
-              </div>
-              {formData.dataset_ids.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {formData.dataset_ids.map((id, index) => (
-                    <span
-                      key={index}
-                      className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm flex items-center space-x-1 font-mono"
-                    >
-                      <span>{id}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveDataset(index)}
-                        className="ml-1 hover:text-blue-600"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
+              <Label>{t('chatAssistants.selectAvatar')}</Label>
+              <AvatarSelector
+                value={formData.avatar}
+                  onChange={(base64) => setFormData({ ...formData, avatar: base64 })}
+                />
                 </div>
-              )}
-            </div>
 
-            {/* LLM Configuration */}
-            <div className="space-y-4 border-t pt-4">
-              <h3 className="font-semibold">LLM Configuration</h3>
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="model_name">Model Name</Label>
-                  <Input
-                    id="model_name"
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="datasets">{t('chatAssistants.datasetIds')}</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="text-muted-foreground hover:text-foreground">
+                          <Info className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>{t('chatAssistants.tooltips.datasetIds')}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+              <MultiSelect
+                options={datasets.map((dataset) => ({
+                  value: dataset.id,
+                  label: `${dataset.name} (${dataset.id.substring(0, 8)}...)`
+                }))}
+                selected={formData.dataset_ids}
+                onChange={(selected) => setFormData({
+                  ...formData,
+                  dataset_ids: selected
+                })}
+                placeholder={t('chatAssistants.selectDatasets')}
+                searchPlaceholder={t('chatAssistants.searchDatasets')}
+                  emptyMessage={t('chatAssistants.noDatasetsFound')}
+                />
+                </div>
+
+                {/* LLM Configuration */}
+                <div className="space-y-4 border-t pt-4">
+                  <h3 className="font-semibold">{t('chatAssistants.llmConfiguration')}</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="model_name">{t('chatAssistants.modelName')}</Label>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button type="button" className="text-muted-foreground hover:text-foreground">
+                              <Info className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p>{t('chatAssistants.tooltips.modelName')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                  <Select
                     value={formData.llm.model_name}
-                    onChange={(e) => setFormData({
+                    onValueChange={(value) => setFormData({
                       ...formData,
-                      llm: { ...formData.llm, model_name: e.target.value }
+                      llm: { ...formData.llm, model_name: value }
                     })}
-                    placeholder="e.g., qwen-plus@Tongyi-Qianwen"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="temperature">Temperature</Label>
-                  <Input
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('chatAssistants.selectModel')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gpt-3.5-turbo@OpenAI">gpt-3.5-turbo@OpenAI</SelectItem>
+                      <SelectItem value="gpt-3.5-turbo-16k-0613@OpenAI">gpt-3.5-turbo-16k-0613@OpenAI</SelectItem>
+                      <SelectItem value="gpt-4@OpenAI">gpt-4@OpenAI</SelectItem>
+                      <SelectItem value="gpt-4-32k@OpenAI">gpt-4-32k@OpenAI</SelectItem>
+                      <SelectItem value="gpt-4-turbo@OpenAI">gpt-4-turbo@OpenAI</SelectItem>
+                      <SelectItem value="gpt-4.1@OpenAI">gpt-4.1@OpenAI</SelectItem>
+                      <SelectItem value="gpt-4.1-mini@OpenAI">gpt-4.1-mini@OpenAI</SelectItem>
+                      <SelectItem value="gpt-4.1-nano@OpenAI">gpt-4.1-nano@OpenAI</SelectItem>
+                      <SelectItem value="gpt-4.5-preview@OpenAI">gpt-4.5-preview@OpenAI</SelectItem>
+                      <SelectItem value="gpt-4o@OpenAI">gpt-4o@OpenAI</SelectItem>
+                      <SelectItem value="gpt-4o-mini@OpenAI">gpt-4o-mini@OpenAI</SelectItem>
+                      <SelectItem value="gpt-5@OpenAI@OpenAI">gpt-5@OpenAI@OpenAI</SelectItem>
+                      <SelectItem value="gpt-5-chat-latest@OpenAI">gpt-5-chat-latest@OpenAI</SelectItem>
+                      <SelectItem value="gpt-5-mini@OpenAI">gpt-5-mini@OpenAI</SelectItem>
+                      <SelectItem value="gpt-5-nano@OpenAI">gpt-5-nano@OpenAI</SelectItem>
+                      <SelectItem value="o3@OpenAI">o3@OpenAI</SelectItem>
+                      <SelectItem value="o4-mini@OpenAI">o4-mini@OpenAI</SelectItem>
+                      <SelectItem value="o4-mini-high@OpenAI">o4-mini-high@OpenAI</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="reasoning">{t('chatAssistants.reasoning')}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('chatAssistants.tooltips.reasoning')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <Switch
+                          id="reasoning"
+                          checked={formData.llm.reasoning}
+                          onCheckedChange={(checked) => setFormData({
+                            ...formData,
+                            llm: { ...formData.llm, reasoning: checked }
+                          })}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="temperature">{t('chatAssistants.temperature')}: {formData.llm.temperature.toFixed(1)}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('chatAssistants.tooltips.temperature')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                  <Slider
                     id="temperature"
-                    type="number"
-                    step="0.1"
-                    value={formData.llm.temperature}
-                    onChange={(e) => setFormData({
+                    value={[formData.llm.temperature]}
+                    onValueChange={([value]) => setFormData({
                       ...formData,
-                      llm: { ...formData.llm, temperature: parseFloat(e.target.value) || 0.1 }
+                      llm: { ...formData.llm, temperature: value }
                     })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="top_p">Top P</Label>
-                  <Input
+                    min={0}
+                    max={2}
+                      step={0.1}
+                    />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="top_p">{t('chatAssistants.topP')}: {formData.llm.top_p.toFixed(1)}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('chatAssistants.tooltips.topP')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                  <Slider
                     id="top_p"
-                    type="number"
-                    step="0.1"
-                    value={formData.llm.top_p}
-                    onChange={(e) => setFormData({
+                    value={[formData.llm.top_p]}
+                    onValueChange={([value]) => setFormData({
                       ...formData,
-                      llm: { ...formData.llm, top_p: parseFloat(e.target.value) || 0.3 }
+                      llm: { ...formData.llm, top_p: value }
                     })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="presence_penalty">Presence Penalty</Label>
-                  <Input
+                    min={0}
+                    max={1}
+                      step={0.1}
+                    />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="presence_penalty">{t('chatAssistants.presencePenalty')}: {formData.llm.presence_penalty.toFixed(1)}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('chatAssistants.tooltips.presencePenalty')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                  <Slider
                     id="presence_penalty"
-                    type="number"
-                    step="0.1"
-                    value={formData.llm.presence_penalty}
-                    onChange={(e) => setFormData({
+                    value={[formData.llm.presence_penalty]}
+                    onValueChange={([value]) => setFormData({
                       ...formData,
-                      llm: { ...formData.llm, presence_penalty: parseFloat(e.target.value) || 0.4 }
+                      llm: { ...formData.llm, presence_penalty: value }
                     })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="frequency_penalty">Frequency Penalty</Label>
-                  <Input
+                    min={-2}
+                    max={2}
+                      step={0.1}
+                    />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="frequency_penalty">{t('chatAssistants.frequencyPenalty')}: {formData.llm.frequency_penalty.toFixed(1)}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('chatAssistants.tooltips.frequencyPenalty')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                  <Slider
                     id="frequency_penalty"
-                    type="number"
-                    step="0.1"
-                    value={formData.llm.frequency_penalty}
-                    onChange={(e) => setFormData({
+                    value={[formData.llm.frequency_penalty]}
+                    onValueChange={([value]) => setFormData({
                       ...formData,
-                      llm: { ...formData.llm, frequency_penalty: parseFloat(e.target.value) || 0.7 }
+                      llm: { ...formData.llm, frequency_penalty: value }
                     })}
-                  />
+                    min={-2}
+                    max={2}
+                      step={0.1}
+                    />
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Prompt Configuration */}
-            <div className="space-y-4 border-t pt-4">
-              <h3 className="font-semibold">Prompt Configuration</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="similarity_threshold">Similarity Threshold</Label>
-                  <Input
+                {/* Prompt Configuration */}
+                <div className="space-y-4 border-t pt-4">
+                  <h3 className="font-semibold">{t('chatAssistants.promptConfiguration')}</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="similarity_threshold">{t('chatAssistants.similarityThreshold')}: {formData.prompt.similarity_threshold.toFixed(1)}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('chatAssistants.tooltips.similarityThreshold')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                  <Slider
                     id="similarity_threshold"
-                    type="number"
-                    step="0.1"
-                    value={formData.prompt.similarity_threshold}
-                    onChange={(e) => setFormData({
+                    value={[formData.prompt.similarity_threshold]}
+                    onValueChange={([value]) => setFormData({
                       ...formData,
-                      prompt: { ...formData.prompt, similarity_threshold: parseFloat(e.target.value) || 0.2 }
+                      prompt: { ...formData.prompt, similarity_threshold: value }
                     })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="keywords_similarity_weight">Keywords Similarity Weight</Label>
-                  <Input
+                    min={0}
+                    max={1}
+                      step={0.1}
+                    />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="keywords_similarity_weight">{t('chatAssistants.keywordsSimilarityWeight')}: {formData.prompt.keywords_similarity_weight.toFixed(1)}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('chatAssistants.tooltips.keywordsSimilarityWeight')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                  <Slider
                     id="keywords_similarity_weight"
-                    type="number"
-                    step="0.1"
-                    value={formData.prompt.keywords_similarity_weight}
-                    onChange={(e) => setFormData({
+                    value={[formData.prompt.keywords_similarity_weight]}
+                    onValueChange={([value]) => setFormData({
                       ...formData,
-                      prompt: { ...formData.prompt, keywords_similarity_weight: parseFloat(e.target.value) || 0.7 }
+                      prompt: { ...formData.prompt, keywords_similarity_weight: value }
                     })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="top_n">Top N</Label>
-                  <Input
+                    min={0}
+                    max={1}
+                      step={0.1}
+                    />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="top_n">{t('chatAssistants.topN')}: {formData.prompt.top_n}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('chatAssistants.tooltips.topN')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                  <Slider
                     id="top_n"
-                    type="number"
-                    value={formData.prompt.top_n}
-                    onChange={(e) => setFormData({
+                    value={[formData.prompt.top_n]}
+                    onValueChange={([value]) => setFormData({
                       ...formData,
-                      prompt: { ...formData.prompt, top_n: parseInt(e.target.value) || 6 }
+                      prompt: { ...formData.prompt, top_n: value }
                     })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="top_k">Top K</Label>
-                  <Input
+                    min={1}
+                    max={50}
+                      step={1}
+                    />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="top_k">{t('chatAssistants.topK')}: {formData.prompt.top_k}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('chatAssistants.tooltips.topK')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                  <Slider
                     id="top_k"
-                    type="number"
-                    value={formData.prompt.top_k}
-                    onChange={(e) => setFormData({
+                    value={[formData.prompt.top_k]}
+                    onValueChange={([value]) => setFormData({
                       ...formData,
-                      prompt: { ...formData.prompt, top_k: parseInt(e.target.value) || 1024 }
+                      prompt: { ...formData.prompt, top_k: value }
                     })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="rerank_model">Rerank Model</Label>
-                  <Input
-                    id="rerank_model"
-                    value={formData.prompt.rerank_model}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      prompt: { ...formData.prompt, rerank_model: e.target.value }
-                    })}
-                    placeholder="Optional rerank model"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="show_quote">Show Quote</Label>
+                    min={1}
+                    max={2048}
+                      step={1}
+                    />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="keyword_analysis">{t('chatAssistants.keywordAnalysis')}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('chatAssistants.tooltips.keywordAnalysis')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                    <Switch
+                      id="keyword_analysis"
+                      checked={formData.prompt.keyword_analysis}
+                      onCheckedChange={(checked) => setFormData({
+                        ...formData,
+                        prompt: { ...formData.prompt, keyword_analysis: checked }
+                      })}
+                      />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="show_quote">{t('chatAssistants.showQuote')}</Label>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button type="button" className="text-muted-foreground hover:text-foreground">
+                              <Info className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p>{t('chatAssistants.tooltips.showQuote')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                   <Select
                     value={formData.prompt.show_quote ? 'true' : 'false'}
                     onValueChange={(value) => setFormData({
@@ -713,14 +983,61 @@ export default function ChatAssistants() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="true">Yes</SelectItem>
-                      <SelectItem value="false">No</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="opener">Opener</Label>
+                      <SelectItem value="true">{t('common.yes')}</SelectItem>
+                      <SelectItem value="false">{t('common.no')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="cross_languages">{t('chatAssistants.crossLanguages')}</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="text-muted-foreground hover:text-foreground">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>{t('chatAssistants.tooltips.crossLanguages')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                <MultiSelect
+                  options={[
+                    { value: 'English', label: t('chatAssistants.english') },
+                    { value: 'Chinese', label: t('chatAssistants.chinese') },
+                    { value: 'Spanish', label: t('chatAssistants.spanish') },
+                    { value: 'French', label: t('chatAssistants.french') },
+                    { value: 'German', label: t('chatAssistants.german') },
+                    { value: 'Japanese', label: t('chatAssistants.japanese') },
+                    { value: 'Korean', label: t('chatAssistants.korean') },
+                    { value: 'Vietnamese', label: t('chatAssistants.vietnamese') }
+                  ]}
+                  selected={formData.prompt.cross_languages}
+                  onChange={(selected) => setFormData({
+                    ...formData,
+                    prompt: { ...formData.prompt, cross_languages: selected }
+                  })}
+                  placeholder={t('chatAssistants.selectLanguages')}
+                  searchPlaceholder={t('chatAssistants.searchLanguages')}
+                    emptyMessage={t('chatAssistants.noLanguagesFound')}
+                  />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="opener">{t('chatAssistants.opener')}</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="text-muted-foreground hover:text-foreground">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>{t('chatAssistants.tooltips.opener')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                 <Input
                   id="opener"
                   value={formData.prompt.opener}
@@ -728,11 +1045,23 @@ export default function ChatAssistants() {
                     ...formData,
                     prompt: { ...formData.prompt, opener: e.target.value }
                   })}
-                  placeholder="Opening greeting"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="empty_response">Empty Response</Label>
+                    placeholder={t('chatAssistants.openerPlaceholder')}
+                  />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="empty_response">{t('chatAssistants.emptyResponse')}</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="text-muted-foreground hover:text-foreground">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>{t('chatAssistants.tooltips.emptyResponse')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                 <Input
                   id="empty_response"
                   value={formData.prompt.empty_response}
@@ -740,11 +1069,23 @@ export default function ChatAssistants() {
                     ...formData,
                     prompt: { ...formData.prompt, empty_response: e.target.value }
                   })}
-                  placeholder="Response when no content found"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="prompt">System Prompt</Label>
+                    placeholder={t('chatAssistants.emptyResponsePlaceholder')}
+                  />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="prompt">{t('chatAssistants.systemPrompt')}</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="text-muted-foreground hover:text-foreground">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>{t('chatAssistants.tooltips.systemPrompt')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                 <Textarea
                   id="prompt"
                   value={formData.prompt.prompt}
@@ -752,233 +1093,463 @@ export default function ChatAssistants() {
                     ...formData,
                     prompt: { ...formData.prompt, prompt: e.target.value }
                   })}
-                  placeholder="System prompt for the assistant"
-                  rows={4}
-                />
-              </div>
-            </div>
+                    placeholder={t('chatAssistants.systemPromptPlaceholder')}
+                    rows={4}
+                  />
+                  </div>
+                </div>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => {
-                setDialogOpen(false);
-                resetForm();
-              }}>
-                Cancel
-              </Button>
-              <Button type="submit">Create Chat Assistant</Button>
-            </DialogFooter>
-          </form>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => {
+                    setDialogOpen(false);
+                    resetForm();
+                  }}>
+                    {t('common.cancel')}
+                  </Button>
+                  <Button type="submit">{t('chatAssistants.createChatAssistant')}</Button>
+                </DialogFooter>
+              </TooltipProvider>
+            </form>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Edit Chat Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Chat Assistant</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleUpdate} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-name">Name *</Label>
-                <Input
-                  id="edit-name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Enter chat assistant name"
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <div className="overflow-y-auto max-h-[calc(90vh-8rem)]">
+            <DialogHeader>
+              <DialogTitle>{t('chatAssistants.editChatAssistant')}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleUpdate} className="space-y-4">
+              <TooltipProvider>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="edit-name">{t('chatAssistants.name')} *</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="text-muted-foreground hover:text-foreground">
+                          <Info className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>{t('chatAssistants.tooltips.name')}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+              <Input
+                id="edit-name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder={t('chatAssistants.namePlaceholder')}
                   required
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-avatar">Avatar (Base64)</Label>
-                <Input
-                  id="edit-avatar"
-                  value={formData.avatar}
-                  onChange={(e) => setFormData({ ...formData, avatar: e.target.value })}
-                  placeholder="Base64 encoded avatar"
-                />
-              </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="edit-description">{t('chatAssistants.description')}</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="text-muted-foreground hover:text-foreground">
+                          <Info className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>{t('chatAssistants.tooltips.description')}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+              <Textarea
+                id="edit-description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder={t('chatAssistants.descriptionPlaceholder')}
+                rows={3}
+              />
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="edit-datasets">Dataset IDs</Label>
-              <div className="flex space-x-2">
-                <Select value={datasetInput} onValueChange={setDatasetInput}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a dataset" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {datasets.map((dataset) => (
-                      <SelectItem key={dataset.id} value={dataset.id}>
-                        {dataset.name} ({dataset.id.substring(0, 8)}...)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button type="button" onClick={handleAddDataset}>
-                  Add
-                </Button>
-              </div>
-              {formData.dataset_ids.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {formData.dataset_ids.map((id, index) => (
-                    <span
-                      key={index}
-                      className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm flex items-center space-x-1 font-mono"
-                    >
-                      <span>{id}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveDataset(index)}
-                        className="ml-1 hover:text-blue-600"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
+              <Label>{t('chatAssistants.selectAvatar')}</Label>
+              <AvatarSelector
+                value={formData.avatar}
+                  onChange={(base64) => setFormData({ ...formData, avatar: base64 })}
+                />
                 </div>
-              )}
-            </div>
 
-            {/* LLM Configuration */}
-            <div className="space-y-4 border-t pt-4">
-              <h3 className="font-semibold">LLM Configuration</h3>
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-model_name">Model Name</Label>
-                  <Input
-                    id="edit-model_name"
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="edit-datasets">{t('chatAssistants.datasetIds')}</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="text-muted-foreground hover:text-foreground">
+                          <Info className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>{t('chatAssistants.tooltips.datasetIds')}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+              <MultiSelect
+                options={datasets.map((dataset) => ({
+                  value: dataset.id,
+                  label: `${dataset.name} (${dataset.id.substring(0, 8)}...)`
+                }))}
+                selected={formData.dataset_ids || []}
+                onChange={(selected) => setFormData({
+                  ...formData,
+                  dataset_ids: selected
+                })}
+                placeholder={t('chatAssistants.selectDatasets')}
+                searchPlaceholder={t('chatAssistants.searchDatasets')}
+                  emptyMessage={t('chatAssistants.noDatasetsFound')}
+                />
+                </div>
+
+                {/* LLM Configuration */}
+                <div className="space-y-4 border-t pt-4">
+                  <h3 className="font-semibold">{t('chatAssistants.llmConfiguration')}</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="edit-model_name">{t('chatAssistants.modelName')}</Label>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button type="button" className="text-muted-foreground hover:text-foreground">
+                              <Info className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p>{t('chatAssistants.tooltips.modelName')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                  <Select
                     value={formData.llm.model_name || ''}
-                    onChange={(e) => setFormData({
+                    onValueChange={(value) => setFormData({
                       ...formData,
-                      llm: { ...formData.llm, model_name: e.target.value }
+                      llm: { ...formData.llm, model_name: value }
                     })}
-                    placeholder="e.g., qwen-plus@Tongyi-Qianwen"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-temperature">Temperature</Label>
-                  <Input
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('chatAssistants.selectModel')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gpt-3.5-turbo@OpenAI">gpt-3.5-turbo@OpenAI</SelectItem>
+                      <SelectItem value="gpt-3.5-turbo-16k-0613@OpenAI">gpt-3.5-turbo-16k-0613@OpenAI</SelectItem>
+                      <SelectItem value="gpt-4@OpenAI">gpt-4@OpenAI</SelectItem>
+                      <SelectItem value="gpt-4-32k@OpenAI">gpt-4-32k@OpenAI</SelectItem>
+                      <SelectItem value="gpt-4-turbo@OpenAI">gpt-4-turbo@OpenAI</SelectItem>
+                      <SelectItem value="gpt-4.1@OpenAI">gpt-4.1@OpenAI</SelectItem>
+                      <SelectItem value="gpt-4.1-mini@OpenAI">gpt-4.1-mini@OpenAI</SelectItem>
+                      <SelectItem value="gpt-4.1-nano@OpenAI">gpt-4.1-nano@OpenAI</SelectItem>
+                      <SelectItem value="gpt-4.5-preview@OpenAI">gpt-4.5-preview@OpenAI</SelectItem>
+                      <SelectItem value="gpt-4o@OpenAI">gpt-4o@OpenAI</SelectItem>
+                      <SelectItem value="gpt-4o-mini@OpenAI">gpt-4o-mini@OpenAI</SelectItem>
+                      <SelectItem value="gpt-5@OpenAI@OpenAI">gpt-5@OpenAI@OpenAI</SelectItem>
+                      <SelectItem value="gpt-5-chat-latest@OpenAI">gpt-5-chat-latest@OpenAI</SelectItem>
+                      <SelectItem value="gpt-5-mini@OpenAI">gpt-5-mini@OpenAI</SelectItem>
+                      <SelectItem value="gpt-5-nano@OpenAI">gpt-5-nano@OpenAI</SelectItem>
+                      <SelectItem value="o3@OpenAI">o3@OpenAI</SelectItem>
+                      <SelectItem value="o4-mini@OpenAI">o4-mini@OpenAI</SelectItem>
+                      <SelectItem value="o4-mini-high@OpenAI">o4-mini-high@OpenAI</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="edit-reasoning">{t('chatAssistants.reasoning')}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('chatAssistants.tooltips.reasoning')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                    <Switch
+                      id="edit-reasoning"
+                      checked={formData.llm.reasoning || false}
+                      onCheckedChange={(checked) => setFormData({
+                        ...formData,
+                        llm: { ...formData.llm, reasoning: checked }
+                      })}
+                      />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="edit-temperature">{t('chatAssistants.temperature')}: {(formData.llm.temperature || 0.1).toFixed(1)}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('chatAssistants.tooltips.temperature')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                  <Slider
                     id="edit-temperature"
-                    type="number"
-                    step="0.1"
-                    value={formData.llm.temperature || 0.1}
-                    onChange={(e) => setFormData({
+                    value={[formData.llm.temperature || 0.1]}
+                    onValueChange={([value]) => setFormData({
                       ...formData,
-                      llm: { ...formData.llm, temperature: parseFloat(e.target.value) || 0.1 }
+                      llm: { ...formData.llm, temperature: value }
                     })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-top_p">Top P</Label>
-                  <Input
+                    min={0}
+                    max={2}
+                      step={0.1}
+                    />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="edit-top_p">{t('chatAssistants.topP')}: {(formData.llm.top_p || 0.3).toFixed(1)}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('chatAssistants.tooltips.topP')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                  <Slider
                     id="edit-top_p"
-                    type="number"
-                    step="0.1"
-                    value={formData.llm.top_p || 0.3}
-                    onChange={(e) => setFormData({
+                    value={[formData.llm.top_p || 0.3]}
+                    onValueChange={([value]) => setFormData({
                       ...formData,
-                      llm: { ...formData.llm, top_p: parseFloat(e.target.value) || 0.3 }
+                      llm: { ...formData.llm, top_p: value }
                     })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-presence_penalty">Presence Penalty</Label>
-                  <Input
+                    min={0}
+                    max={1}
+                      step={0.1}
+                    />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="edit-presence_penalty">{t('chatAssistants.presencePenalty')}: {(formData.llm.presence_penalty || 0.4).toFixed(1)}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('chatAssistants.tooltips.presencePenalty')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                  <Slider
                     id="edit-presence_penalty"
-                    type="number"
-                    step="0.1"
-                    value={formData.llm.presence_penalty || 0.2}
-                    onChange={(e) => setFormData({
+                    value={[formData.llm.presence_penalty || 0.4]}
+                    onValueChange={([value]) => setFormData({
                       ...formData,
-                      llm: { ...formData.llm, presence_penalty: parseFloat(e.target.value) || 0.2 }
+                      llm: { ...formData.llm, presence_penalty: value }
                     })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-frequency_penalty">Frequency Penalty</Label>
-                  <Input
+                    min={-2}
+                    max={2}
+                      step={0.1}
+                    />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="edit-frequency_penalty">{t('chatAssistants.frequencyPenalty')}: {(formData.llm.frequency_penalty || 0.7).toFixed(1)}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('chatAssistants.tooltips.frequencyPenalty')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                  <Slider
                     id="edit-frequency_penalty"
-                    type="number"
-                    step="0.1"
-                    value={formData.llm.frequency_penalty || 0.7}
-                    onChange={(e) => setFormData({
+                    value={[formData.llm.frequency_penalty || 0.7]}
+                    onValueChange={([value]) => setFormData({
                       ...formData,
-                      llm: { ...formData.llm, frequency_penalty: parseFloat(e.target.value) || 0.7 }
+                      llm: { ...formData.llm, frequency_penalty: value }
                     })}
+                    min={-2}
+                    max={2}
+                    step={0.1}
                   />
                 </div>
               </div>
             </div>
 
-            {/* Prompt Configuration */}
-            <div className="space-y-4 border-t pt-4">
-              <h3 className="font-semibold">Prompt Configuration</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-similarity_threshold">Similarity Threshold</Label>
-                  <Input
+                {/* Prompt Configuration */}
+                <div className="space-y-4 border-t pt-4">
+                  <h3 className="font-semibold">{t('chatAssistants.promptConfiguration')}</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="edit-similarity_threshold">{t('chatAssistants.similarityThreshold')}: {(formData.prompt.similarity_threshold || 0.2).toFixed(1)}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('chatAssistants.tooltips.similarityThreshold')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                  <Slider
                     id="edit-similarity_threshold"
-                    type="number"
-                    step="0.1"
-                    value={formData.prompt.similarity_threshold || 0.2}
-                    onChange={(e) => setFormData({
+                    value={[formData.prompt.similarity_threshold || 0.2]}
+                    onValueChange={([value]) => setFormData({
                       ...formData,
-                      prompt: { ...formData.prompt, similarity_threshold: parseFloat(e.target.value) || 0.2 }
+                      prompt: { ...formData.prompt, similarity_threshold: value }
                     })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-keywords_similarity_weight">Keywords Similarity Weight</Label>
-                  <Input
+                    min={0}
+                    max={1}
+                      step={0.1}
+                    />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="edit-keywords_similarity_weight">{t('chatAssistants.keywordsSimilarityWeight')}: {(formData.prompt.keywords_similarity_weight || 0.7).toFixed(1)}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('chatAssistants.tooltips.keywordsSimilarityWeight')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                  <Slider
                     id="edit-keywords_similarity_weight"
-                    type="number"
-                    step="0.1"
-                    value={formData.prompt.keywords_similarity_weight || 0.7}
-                    onChange={(e) => setFormData({
+                    value={[formData.prompt.keywords_similarity_weight || 0.7]}
+                    onValueChange={([value]) => setFormData({
                       ...formData,
-                      prompt: { ...formData.prompt, keywords_similarity_weight: parseFloat(e.target.value) || 0.7 }
+                      prompt: { ...formData.prompt, keywords_similarity_weight: value }
                     })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-top_n">Top N</Label>
-                  <Input
+                    min={0}
+                    max={1}
+                      step={0.1}
+                    />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="edit-top_n">{t('chatAssistants.topN')}: {formData.prompt.top_n || 6}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('chatAssistants.tooltips.topN')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                  <Slider
                     id="edit-top_n"
-                    type="number"
-                    value={formData.prompt.top_n || 8}
-                    onChange={(e) => setFormData({
+                    value={[formData.prompt.top_n || 6]}
+                    onValueChange={([value]) => setFormData({
                       ...formData,
-                      prompt: { ...formData.prompt, top_n: parseInt(e.target.value) || 8 }
+                      prompt: { ...formData.prompt, top_n: value }
                     })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-top_k">Top K</Label>
-                  <Input
+                    min={1}
+                    max={50}
+                      step={1}
+                    />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="edit-top_k">{t('chatAssistants.topK')}: {formData.prompt.top_k || 1024}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('chatAssistants.tooltips.topK')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                  <Slider
                     id="edit-top_k"
-                    type="number"
-                    value={formData.prompt.top_k || 1024}
-                    onChange={(e) => setFormData({
+                    value={[formData.prompt.top_k || 1024]}
+                    onValueChange={([value]) => setFormData({
                       ...formData,
-                      prompt: { ...formData.prompt, top_k: parseInt(e.target.value) || 1024 }
+                      prompt: { ...formData.prompt, top_k: value }
                     })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-rerank_model">Rerank Model</Label>
-                  <Input
-                    id="edit-rerank_model"
-                    value={formData.prompt.rerank_model || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      prompt: { ...formData.prompt, rerank_model: e.target.value }
-                    })}
-                    placeholder="Optional rerank model"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-show_quote">Show Quote</Label>
+                    min={1}
+                    max={2048}
+                      step={1}
+                    />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="edit-keyword_analysis">{t('chatAssistants.keywordAnalysis')}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('chatAssistants.tooltips.keywordAnalysis')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <Switch
+                      id="edit-keyword_analysis"
+                      checked={formData.prompt.keyword_analysis || false}
+                      onCheckedChange={(checked) => setFormData({
+                        ...formData,
+                        prompt: { ...formData.prompt, keyword_analysis: checked }
+                        })}
+                      />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="edit-show_quote">{t('chatAssistants.showQuote')}</Label>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button type="button" className="text-muted-foreground hover:text-foreground">
+                              <Info className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p>{t('chatAssistants.tooltips.showQuote')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                   <Select
                     value={formData.prompt.show_quote !== false ? 'true' : 'false'}
                     onValueChange={(value) => setFormData({
@@ -990,14 +1561,61 @@ export default function ChatAssistants() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="true">Yes</SelectItem>
-                      <SelectItem value="false">No</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-opener">Opener</Label>
+                      <SelectItem value="true">{t('common.yes')}</SelectItem>
+                      <SelectItem value="false">{t('common.no')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="edit-cross_languages">{t('chatAssistants.crossLanguages')}</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="text-muted-foreground hover:text-foreground">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>{t('chatAssistants.tooltips.crossLanguages')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                <MultiSelect
+                  options={[
+                    { value: 'English', label: t('chatAssistants.english') },
+                    { value: 'Chinese', label: t('chatAssistants.chinese') },
+                    { value: 'Spanish', label: t('chatAssistants.spanish') },
+                    { value: 'French', label: t('chatAssistants.french') },
+                    { value: 'German', label: t('chatAssistants.german') },
+                    { value: 'Japanese', label: t('chatAssistants.japanese') },
+                    { value: 'Korean', label: t('chatAssistants.korean') },
+                    { value: 'Vietnamese', label: t('chatAssistants.vietnamese') }
+                  ]}
+                  selected={formData.prompt.cross_languages || []}
+                  onChange={(selected) => setFormData({
+                    ...formData,
+                    prompt: { ...formData.prompt, cross_languages: selected }
+                  })}
+                  placeholder={t('chatAssistants.selectLanguages')}
+                  searchPlaceholder={t('chatAssistants.searchLanguages')}
+                    emptyMessage={t('chatAssistants.noLanguagesFound')}
+                  />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="edit-opener">{t('chatAssistants.opener')}</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="text-muted-foreground hover:text-foreground">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>{t('chatAssistants.tooltips.opener')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                 <Input
                   id="edit-opener"
                   value={formData.prompt.opener || ''}
@@ -1005,11 +1623,23 @@ export default function ChatAssistants() {
                     ...formData,
                     prompt: { ...formData.prompt, opener: e.target.value }
                   })}
-                  placeholder="Opening greeting"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-empty_response">Empty Response</Label>
+                    placeholder={t('chatAssistants.openerPlaceholder')}
+                  />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="edit-empty_response">{t('chatAssistants.emptyResponse')}</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="text-muted-foreground hover:text-foreground">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>{t('chatAssistants.tooltips.emptyResponse')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                 <Input
                   id="edit-empty_response"
                   value={formData.prompt.empty_response || ''}
@@ -1017,11 +1647,23 @@ export default function ChatAssistants() {
                     ...formData,
                     prompt: { ...formData.prompt, empty_response: e.target.value }
                   })}
-                  placeholder="Response when no content found"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-prompt">System Prompt</Label>
+                    placeholder={t('chatAssistants.emptyResponsePlaceholder')}
+                  />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="edit-prompt">{t('chatAssistants.systemPrompt')}</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="text-muted-foreground hover:text-foreground">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>{t('chatAssistants.tooltips.systemPrompt')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                 <Textarea
                   id="edit-prompt"
                   value={formData.prompt.prompt || ''}
@@ -1029,23 +1671,25 @@ export default function ChatAssistants() {
                     ...formData,
                     prompt: { ...formData.prompt, prompt: e.target.value }
                   })}
-                  placeholder="System prompt for the assistant"
-                  rows={4}
-                />
-              </div>
-            </div>
+                    placeholder={t('chatAssistants.systemPromptPlaceholder')}
+                    rows={4}
+                  />
+                  </div>
+                </div>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => {
-                setEditDialogOpen(false);
-                setSelectedChat(null);
-                resetForm();
-              }}>
-                Cancel
-              </Button>
-              <Button type="submit">Update Chat Assistant</Button>
-            </DialogFooter>
-          </form>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => {
+                    setEditDialogOpen(false);
+                    setSelectedChat(null);
+                    resetForm();
+                  }}>
+                    {t('common.cancel')}
+                  </Button>
+                  <Button type="submit">{t('chatAssistants.updateChatAssistant')}</Button>
+                </DialogFooter>
+              </TooltipProvider>
+            </form>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -1053,20 +1697,20 @@ export default function ChatAssistants() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Chat Assistant</DialogTitle>
+            <DialogTitle>{t('chatAssistants.deleteChatAssistant')}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Are you sure you want to delete "{selectedChat?.name}"? This action cannot be undone.
+            {t('chatAssistants.deleteConfirm', { name: selectedChat?.name })}
           </p>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => {
               setDeleteDialogOpen(false);
               setSelectedChat(null);
             }}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="button" variant="destructive" onClick={handleDelete}>
-              Delete
+              {t('common.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1076,19 +1720,19 @@ export default function ChatAssistants() {
       <Dialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Chat Assistants</DialogTitle>
+            <DialogTitle>{t('chatAssistants.deleteChatAssistants')}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Are you sure you want to delete {selectedChats.length} chat assistant(s)? This action cannot be undone.
+            {t('chatAssistants.bulkDeleteConfirm', { count: selectedChats.length })}
           </p>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => {
               setBulkDeleteDialogOpen(false);
             }}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="button" variant="destructive" onClick={handleBulkDelete}>
-              Delete {selectedChats.length} Chat(s)
+              {t('chatAssistants.deleteChats', { count: selectedChats.length })}
             </Button>
           </DialogFooter>
         </DialogContent>

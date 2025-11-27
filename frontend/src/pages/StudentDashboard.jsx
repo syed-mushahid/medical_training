@@ -3,21 +3,38 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
+import { Label } from '../components/ui/label';
+import { Input } from '../components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
+import { useToast } from '../components/ui/use-toast.jsx';
 import api from '../lib/api';
-import { BookOpen, User, MessageSquare, MessageCircle } from 'lucide-react';
+import { MessageCircle, Plus, History } from 'lucide-react';
 import Loading from '../components/Loading';
+import { useTranslation } from 'react-i18next';
+import { Badge } from '../components/ui/badge';
 
 export default function StudentDashboard() {
-  const { user, fetchUser } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
   const [assignedChats, setAssignedChats] = useState([]);
   const [chatsLoading, setChatsLoading] = useState(true);
   const [allSessions, setAllSessions] = useState([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [newConversationDialogOpen, setNewConversationDialogOpen] = useState(false);
+  const [selectedChatId, setSelectedChatId] = useState('');
+  const [sessionName, setSessionName] = useState('');
+  const [creatingSession, setCreatingSession] = useState(false);
+  const { toast } = useToast();
+  const { t } = useTranslation();
 
   useEffect(() => {
-    fetchUser().finally(() => setLoading(false));
     fetchAssignedChats();
     fetchAllSessions();
   }, []);
@@ -101,7 +118,8 @@ export default function StudentDashboard() {
               const sessionsWithChat = sessionsResponse.data.sessions.map(session => ({
                 ...session,
                 chat_id: chat.id,
-                chat_name: chat.name || 'Unnamed Chat'
+                chat_name: chat.name || 'Unnamed Chat',
+                chat_avatar: chat.avatar || null
               }));
               allSessionsList.push(...sessionsWithChat);
             }
@@ -126,41 +144,120 @@ export default function StudentDashboard() {
     }
   };
 
-  if (loading) {
-    return <Loading />;
-  }
+  const handleNewConversation = () => {
+    if (assignedChats.length === 0) {
+      toast({
+        title: t('toast.error'),
+        description: t('studentDashboard.noChatAssistantsAssigned'),
+        variant: 'destructive',
+      });
+      return;
+    }
 
-  const studentProfile = user?.profile;
+    if (assignedChats.length === 1) {
+      // Only one chat assistant, create session directly
+      createSession(assignedChats[0].id);
+    } else {
+      // Multiple chat assistants, show selection modal
+      setNewConversationDialogOpen(true);
+    }
+  };
+
+  const createSession = async (chatId) => {
+    try {
+      setCreatingSession(true);
+      
+      // Generate a default session name if not provided
+      const name = sessionName.trim() || `${t('studentDashboard.newChat')} - ${new Date().toLocaleDateString()}`;
+      
+      const response = await api.post(`/ragflow/chats/${chatId}/sessions`, {
+        name: name
+      });
+
+      if (response.data.success) {
+        const sessionId = response.data.session?.id;
+        if (sessionId) {
+          toast({
+            title: t('toast.success'),
+            description: t('studentDashboard.sessionCreated'),
+          });
+          setNewConversationDialogOpen(false);
+          setSessionName('');
+          setSelectedChatId('');
+          // Redirect to chat page
+          navigate(`/student/chats/${chatId}/sessions/${sessionId}/messages`);
+        } else {
+          throw new Error('Session ID not returned');
+        }
+      } else {
+        throw new Error(response.data.error || 'Failed to create session');
+      }
+    } catch (error) {
+      toast({
+        title: t('toast.error'),
+        description: error.response?.data?.error || error.message || t('studentDashboard.failedToCreateSession'),
+        variant: 'destructive',
+      });
+    } finally {
+      setCreatingSession(false);
+    }
+  };
+
+  const handleCreateSession = async (e) => {
+    e.preventDefault();
+    
+    if (!selectedChatId) {
+      toast({
+        title: t('toast.error'),
+        description: t('studentDashboard.selectChatAssistant'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    await createSession(selectedChatId);
+  };
 
   return (
     <div className="space-y-6">
       <div className="py-2">
-        <h1 className="text-2xl font-bold">My Dashboard</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Welcome, {studentProfile?.first_name} {studentProfile?.last_name}!
-        </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <History className="h-6 w-6 text-primary" />
+            <div>
+              <h1 className="text-2xl font-bold">{t('studentDashboard.history')}</h1>
+              <p className="text-muted-foreground mt-1 text-sm">
+                {t('studentDashboard.chatHistory')}
+              </p>
+            </div>
+          </div>
+          <Button onClick={handleNewConversation} size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            {t('studentDashboard.newChat')}
+          </Button>
+        </div>
       </div>
 
-      {/* All Sessions */}
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center space-x-2">
-                    <MessageCircle className="h-5 w-5 text-primary" />
-                    <CardTitle>My Conversations</CardTitle>
-                  </div>
-                  <CardDescription>All your conversation sessions</CardDescription>
-                </CardHeader>
-                <CardContent className="p-0">
+      {/* Chat History */}
+      <div className="bg-white rounded-lg">
+        <div className="p-0">
                   {sessionsLoading ? (
                     <div className="p-8">
                       <Loading />
                     </div>
                   ) : allSessions.length === 0 ? (
-                    <div className="p-8 text-center">
-                      <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-50" />
-                      <p className="text-muted-foreground">
-                        No conversations yet. Start a conversation from Chat Assistants.
+                    <div className="p-12 text-center">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+                        <MessageCircle className="h-8 w-8 text-primary opacity-60" />
+                      </div>
+                      <h3 className="text-lg font-semibold mb-2">{t('studentDashboard.noChatsYet')}</h3>
+                      <p className="text-muted-foreground mb-4">
+                        {t('studentDashboard.startChatHint')}
                       </p>
+                      <Button onClick={handleNewConversation} variant="outline">
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t('studentDashboard.newChat')}
+                      </Button>
                     </div>
                   ) : (
                     <div className="divide-y">
@@ -193,60 +290,69 @@ export default function StudentDashboard() {
                           const diffHours = Math.floor(diffMs / 3600000);
                           const diffDays = Math.floor(diffMs / 86400000);
 
-                          if (diffMins < 1) return 'Just now';
-                          if (diffMins < 60) return `${diffMins}m ago`;
-                          if (diffHours < 24) return `${diffHours}h ago`;
-                          if (diffDays < 7) return `${diffDays}d ago`;
+                          if (diffMins < 1) return t('studentDashboard.justNow');
+                          if (diffMins < 60) return t('studentDashboard.minutesAgo', { count: diffMins });
+                          if (diffHours < 24) return t('studentDashboard.hoursAgo', { count: diffHours });
+                          if (diffDays < 7) return t('studentDashboard.daysAgo', { count: diffDays });
                           return date.toLocaleDateString();
                         };
 
                         return (
                           <div
                             key={session.id}
-                            className="p-4 hover:bg-accent cursor-pointer transition-colors"
+                            className="p-5 hover:bg-muted/50 cursor-pointer transition-colors border-b last:border-b-0"
                             onClick={() => navigate(`/student/chats/${session.chat_id}/sessions/${session.id}/messages`)}
                           >
-                            <div className="flex items-start space-x-3">
+                            <div className="flex items-start gap-4">
                               {/* Avatar */}
                               <div className="flex-shrink-0">
-                                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                                  <MessageCircle className="h-6 w-6 text-primary" />
-                                </div>
+                                {session.chat_avatar ? (
+                                  <img 
+                                    src={session.chat_avatar} 
+                                    alt={session.chat_name || 'Chat'} 
+                                    className="w-14 h-14 rounded-full object-cover border-2 border-primary/10"
+                                  />
+                                ) : (
+                                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border-2 border-primary/10">
+                                    <MessageCircle className="h-7 w-7 text-primary" />
+                                  </div>
+                                )}
                               </div>
 
                               {/* Content */}
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between mb-1">
-                                  <h3 className="font-semibold text-base truncate">
-                                    {session.name || 'Unnamed Session'}
-                                  </h3>
+                                <div className="flex items-start justify-between gap-3 mb-2">
+                                  <div className="flex-1 min-w-0">
+                                    <h3 className="font-semibold text-base mb-1 truncate">
+                                      {session.name || t('studentDashboard.unnamedSession')}
+                                    </h3>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <Badge variant="secondary" className="text-xs">
+                                        {session.chat_name || t('studentDashboard.chatAssistant')}
+                                      </Badge>
+                                      {session.evaluation_score !== null && session.evaluation_score !== undefined && (
+                                        <Badge className={`text-xs ${getScoreColor(session.evaluation_score)}`}>
+                                          {session.evaluation_score}/100
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
                                   {lastMessageTime && (
-                                    <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
+                                    <span className="text-xs text-muted-foreground flex-shrink-0 whitespace-nowrap">
                                       {formatTime(lastMessageTime)}
-                                    </span>
-                                  )}
-                                </div>
-                                
-                                <div className="flex items-center space-x-2 mb-2">
-                                  <p className="text-sm text-muted-foreground truncate">
-                                    {session.chat_name || 'Chat Assistant'}
-                                  </p>
-                                  {session.evaluation_score !== null && session.evaluation_score !== undefined && (
-                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getScoreColor(session.evaluation_score)}`}>
-                                      {session.evaluation_score}/100
                                     </span>
                                   )}
                                 </div>
 
                                 {/* Last Message Preview */}
-                                <div className="flex items-center justify-between">
-                                  <p className="text-sm text-muted-foreground truncate">
+                                <div className="flex items-center justify-between gap-2 mt-2">
+                                  <p className="text-sm text-muted-foreground line-clamp-2 flex-1">
                                     {lastMessageText}
                                   </p>
                                   {messageCount > 0 && (
-                                    <span className="ml-2 flex-shrink-0 text-xs text-muted-foreground">
-                                      {messageCount} {messageCount === 1 ? 'message' : 'messages'}
-                                    </span>
+                                    <Badge variant="outline" className="text-xs flex-shrink-0">
+                                      {messageCount} {messageCount === 1 ? t('studentDashboard.message') : t('studentDashboard.messages')}
+                                    </Badge>
                                   )}
                                 </div>
                               </div>
@@ -256,132 +362,67 @@ export default function StudentDashboard() {
                       })}
                     </div>
                   )}
-                </CardContent>
-              </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center space-x-2">
-              <User className="h-5 w-5" />
-              <CardTitle>Profile Information</CardTitle>
+      {/* New Chat Dialog */}
+      <Dialog open={newConversationDialogOpen} onOpenChange={setNewConversationDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('studentDashboard.newChat')}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateSession} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="chat-assistant">{t('studentDashboard.selectChatAssistant')}</Label>
+              <Select value={selectedChatId} onValueChange={setSelectedChatId} required>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('studentDashboard.selectChatAssistantPlaceholder')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {assignedChats.map((chat) => (
+                    <SelectItem key={chat.id} value={chat.id}>
+                      {chat.name || t('studentDashboard.unnamedChat')}
+                      {chat.description && (
+                        <span className="text-muted-foreground ml-2">
+                          - {chat.description.substring(0, 30)}...
+                        </span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <CardDescription>Your personal details</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Email</p>
-              <p className="text-lg">{user?.email}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Full Name</p>
-              <p className="text-lg">
-                {studentProfile?.first_name} {studentProfile?.last_name}
+            <div className="space-y-2">
+              <Label htmlFor="session-name">{t('studentDashboard.sessionName')} ({t('common.optional')})</Label>
+              <Input
+                id="session-name"
+                value={sessionName}
+                onChange={(e) => setSessionName(e.target.value)}
+                placeholder={t('studentDashboard.sessionNamePlaceholder')}
+              />
+              <p className="text-xs text-muted-foreground">
+                {t('studentDashboard.sessionNameHint')}
               </p>
             </div>
-            {studentProfile?.phone && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Phone</p>
-                <p className="text-lg">{studentProfile.phone}</p>
-              </div>
-            )}
-            {studentProfile?.date_of_birth && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Date of Birth</p>
-                <p className="text-lg">{studentProfile.date_of_birth}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center space-x-2">
-              <BookOpen className="h-5 w-5" />
-              <CardTitle>My Groups</CardTitle>
-            </div>
-            <CardDescription>Groups you belong to</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {studentProfile?.groups && studentProfile.groups.length > 0 ? (
-              <div className="space-y-3">
-                {studentProfile.groups.map((group) => (
-                  <div
-                    key={group.id}
-                    className="p-4 border rounded-lg hover:bg-accent transition-colors"
-                  >
-                    <h3 className="font-semibold">{group.name}</h3>
-                    {group.description && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {group.description}
-                      </p>
-                    )}
-                    {group.instructors && group.instructors.length > 0 && (
-                      <div className="mt-2">
-                        <p className="text-xs text-muted-foreground">
-                          Instructors: {group.instructors.map(i => `${i.first_name} ${i.last_name}`).join(', ')}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground">You are not assigned to any groups yet.</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Assigned Chats */}
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <div className="flex items-center space-x-2">
-              <MessageSquare className="h-5 w-5" />
-              <CardTitle>Assigned Chat Assistants</CardTitle>
-            </div>
-            <CardDescription>Chat assistants you can interact with</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {chatsLoading ? (
-              <Loading />
-            ) : assignedChats.length === 0 ? (
-              <p className="text-muted-foreground">No chat assistants assigned to you yet.</p>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {assignedChats.map((chat) => (
-                  <div
-                    key={chat.id}
-                    className="p-4 border rounded-lg hover:bg-accent transition-colors cursor-pointer"
-                    onClick={() => {
-                      // Navigate to create a new session or list sessions for this chat
-                      navigate(`/student/chats/${chat.id}`);
-                    }}
-                  >
-                    <h3 className="font-semibold">{chat.name || 'Unnamed Chat'}</h3>
-                    {chat.description && (
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                        {chat.description}
-                      </p>
-                    )}
-                    <div className="mt-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/student/chats/${chat.id}`);
-                        }}
-                      >
-                        Start Conversation
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  setNewConversationDialogOpen(false);
+                  setSessionName('');
+                  setSelectedChatId('');
+                }}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button type="submit" disabled={creatingSession || !selectedChatId}>
+                {creatingSession ? t('common.creating') : t('studentDashboard.createConversation')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

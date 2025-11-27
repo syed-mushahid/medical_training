@@ -22,9 +22,12 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { useToast } from '../components/ui/use-toast.jsx';
-import { Plus, RefreshCw, Edit, Trash2, Network, Eye, Search } from 'lucide-react';
+import { Plus, RefreshCw, Edit, Trash2, Network, Eye, Search, FolderOpen, Info } from 'lucide-react';
+import { Badge } from '../components/ui/badge';
 import { Textarea } from '../components/ui/textarea';
 import Loading from '../components/Loading';
+import { useTranslation } from 'react-i18next';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../components/ui/tooltip';
 
 export default function RAGFlow() {
   const navigate = useNavigate();
@@ -60,6 +63,7 @@ export default function RAGFlow() {
   });
   const [errors, setErrors] = useState({});
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   useEffect(() => {
     fetchDatasets();
@@ -73,15 +77,15 @@ export default function RAGFlow() {
         setDatasets(response.data.datasets || []);
       } else {
         toast({
-          title: 'Error',
-          description: response.data.error || 'Failed to fetch datasets',
+          title: t('toast.error'),
+          description: response.data.error || t('ragflow.failedToFetch'),
           variant: 'destructive',
         });
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to fetch datasets',
+        title: t('toast.error'),
+        description: error.response?.data?.error || t('ragflow.failedToFetch'),
         variant: 'destructive',
       });
     } finally {
@@ -204,23 +208,23 @@ export default function RAGFlow() {
       
       if (response.data.success) {
         toast({
-          title: 'Success',
-          description: 'Dataset created successfully',
+          title: t('toast.success'),
+          description: t('ragflow.datasetCreated'),
         });
         setDialogOpen(false);
         resetForm();
         fetchDatasets();
       } else {
         toast({
-          title: 'Error',
-          description: response.data.error || 'Failed to create dataset',
+          title: t('toast.error'),
+          description: response.data.error || t('ragflow.failedToCreate'),
           variant: 'destructive',
         });
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to create dataset',
+        title: t('toast.error'),
+        description: error.response?.data?.error || t('ragflow.failedToCreate'),
         variant: 'destructive',
       });
     }
@@ -298,8 +302,8 @@ export default function RAGFlow() {
       
       if (response.data.success) {
         toast({
-          title: 'Success',
-          description: 'Dataset updated successfully',
+          title: t('toast.success'),
+          description: t('ragflow.datasetUpdated'),
         });
         setEditDialogOpen(false);
         setSelectedDataset(null);
@@ -307,15 +311,15 @@ export default function RAGFlow() {
         fetchDatasets();
       } else {
         toast({
-          title: 'Error',
-          description: response.data.error || 'Failed to update dataset',
+          title: t('toast.error'),
+          description: response.data.error || t('ragflow.failedToUpdate'),
           variant: 'destructive',
         });
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to update dataset',
+        title: t('toast.error'),
+        description: error.response?.data?.error || t('ragflow.failedToUpdate'),
         variant: 'destructive',
       });
     }
@@ -333,8 +337,8 @@ export default function RAGFlow() {
         idsToDelete = selectedDatasets;
       } else {
         toast({
-          title: 'Error',
-          description: 'Please select at least one dataset to delete',
+          title: t('toast.error'),
+          description: t('ragflow.selectToDelete'),
           variant: 'destructive',
         });
         return;
@@ -346,8 +350,8 @@ export default function RAGFlow() {
       
       if (response.data.success) {
         toast({
-          title: 'Success',
-          description: 'Dataset(s) deleted successfully',
+          title: t('toast.success'),
+          description: t('ragflow.datasetsDeleted'),
         });
         setDeleteDialogOpen(false);
         setSelectedDataset(null);
@@ -355,15 +359,15 @@ export default function RAGFlow() {
         fetchDatasets();
       } else {
         toast({
-          title: 'Error',
-          description: response.data.error || 'Failed to delete dataset(s)',
+          title: t('toast.error'),
+          description: response.data.error || t('ragflow.failedToDelete'),
           variant: 'destructive',
         });
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to delete dataset(s)',
+        title: t('toast.error'),
+        description: error.response?.data?.error || t('ragflow.failedToDelete'),
         variant: 'destructive',
       });
     }
@@ -393,17 +397,18 @@ export default function RAGFlow() {
     <div className="space-y-6">
       <div className="flex justify-between items-center py-2">
         <div>
-          <h1 className="text-2xl font-bold">Dataset</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Manage datasets</p>
+          <h1 className="text-2xl font-bold">{t('ragflow.title')}</h1>
+          <p className="text-muted-foreground mt-1 text-sm">{t('ragflow.subtitle')}</p>
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline" onClick={() => navigate('/ragflow/retrieval')}>
+          {/* Temporarily hidden - Chunk Retrieval button */}
+          {/* <Button variant="outline" onClick={() => navigate('/ragflow/retrieval')}>
             <Search className="h-4 w-4 mr-2" />
-            Chunk Retrieval
-          </Button>
+            {t('ragflow.chunkRetrieval')}
+          </Button> */}
           <Button variant="outline" onClick={fetchDatasets}>
             <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+            {t('common.refresh')}
           </Button>
           {selectedDatasets.length > 0 && (
             <Button
@@ -414,54 +419,56 @@ export default function RAGFlow() {
               }}
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Delete Selected ({selectedDatasets.length})
+              {t('ragflow.deleteSelected')} ({selectedDatasets.length})
             </Button>
           )}
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Create Dataset
+            {t('ragflow.createDataset')}
           </Button>
         </div>
       </div>
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>
-                  <input
-                    type="checkbox"
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedDatasets(datasets.map(d => d.id));
-                      } else {
-                        setSelectedDatasets([]);
-                      }
-                    }}
-                    checked={selectedDatasets.length === datasets.length && datasets.length > 0}
-                  />
-                </TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Chunk Method</TableHead>
-                <TableHead>Embedding Model</TableHead>
-                <TableHead>Documents</TableHead>
-                <TableHead>Chunks</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="w-12">
+                    <input
+                      type="checkbox"
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedDatasets(datasets.map(d => d.id));
+                        } else {
+                          setSelectedDatasets([]);
+                        }
+                      }}
+                      checked={selectedDatasets.length === datasets.length && datasets.length > 0}
+                      className="cursor-pointer"
+                    />
+                  </TableHead>
+                  <TableHead className="font-semibold">{t('common.name')}</TableHead>
+                  <TableHead className="font-semibold">{t('common.description')}</TableHead>
+                  <TableHead className="font-semibold">{t('ragflow.chunkMethod')}</TableHead>
+                  <TableHead className="font-semibold">{t('ragflow.embeddingModel')}</TableHead>
+                  <TableHead className="font-semibold text-center">{t('ragflow.documents')}</TableHead>
+                  <TableHead className="font-semibold text-center">{t('ragflow.chunks')}</TableHead>
+                  <TableHead className="font-semibold text-center">{t('common.status')}</TableHead>
+                  <TableHead className="text-right font-semibold">{t('common.actions')}</TableHead>
+                </TableRow>
+              </TableHeader>
             <TableBody>
               {datasets.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center">
-                    No datasets found
+                    {t('ragflow.noDatasetsFound')}
                   </TableCell>
                 </TableRow>
               ) : (
                 datasets.map((dataset) => (
-                  <TableRow key={dataset.id}>
+                  <TableRow key={dataset.id} className="hover:bg-muted/50 transition-colors">
                     <TableCell>
                       <input
                         type="checkbox"
@@ -473,34 +480,58 @@ export default function RAGFlow() {
                             setSelectedDatasets(selectedDatasets.filter(id => id !== dataset.id));
                           }
                         }}
+                        className="cursor-pointer"
                       />
                     </TableCell>
-                    <TableCell className="font-medium">{dataset.name}</TableCell>
-                    <TableCell>{dataset.description || '-'}</TableCell>
-                    <TableCell>{dataset.chunk_method || '-'}</TableCell>
-                    <TableCell>{dataset.embedding_model || '-'}</TableCell>
-                    <TableCell>{dataset.document_count || 0}</TableCell>
-                    <TableCell>{dataset.chunk_count || 0}</TableCell>
+                    <TableCell className="font-medium py-4">{dataset.name}</TableCell>
+                    <TableCell className="max-w-xs truncate" title={dataset.description || '-'}>
+                      {dataset.description || <span className="text-muted-foreground">-</span>}
+                    </TableCell>
                     <TableCell>
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        dataset.status === '1' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {dataset.status === '1' ? 'Active' : 'Inactive'}
-                      </span>
+                      {dataset.chunk_method ? (
+                        <Badge variant="outline" className="font-normal">
+                          {dataset.chunk_method}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate font-mono text-xs" title={dataset.embedding_model || '-'}>
+                      {dataset.embedding_model || <span className="text-muted-foreground">-</span>}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="secondary" className="font-semibold">
+                        {dataset.document_count || 0}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="secondary" className="font-semibold">
+                        {dataset.chunk_count || 0}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge 
+                        variant={dataset.status === '1' ? 'default' : 'secondary'}
+                        className={dataset.status === '1' ? 'bg-green-500 hover:bg-green-600' : ''}
+                      >
+                        {dataset.status === '1' ? t('common.active') : t('common.inactive')}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end space-x-2">
+                      <div className="flex justify-end space-x-1">
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => {
                             navigate(`/ragflow/datasets/${dataset.id}/documents`);
                           }}
-                          title="Manage Documents"
+                          title={t('ragflow.manageDocuments')}
+                          className="h-8 w-8"
                         >
-                          <Eye className="h-4 w-4" />
+                          <FolderOpen className="h-4 w-4" />
                         </Button>
-                        <Button
+                        {/* Temporarily hidden - Knowledge Graph button */}
+                        {/* <Button
                           variant="ghost"
                           size="icon"
                           onClick={async () => {
@@ -513,25 +544,25 @@ export default function RAGFlow() {
                                 setKnowledgeGraphDialogOpen(true);
                               } else {
                                 toast({
-                                  title: 'Error',
-                                  description: response.data.error || 'Failed to fetch knowledge graph',
+                                  title: t('toast.error'),
+                                  description: response.data.error || t('ragflow.failedToFetchGraph'),
                                   variant: 'destructive',
                                 });
                               }
                             } catch (error) {
                               toast({
-                                title: 'Error',
-                                description: error.response?.data?.error || 'Failed to fetch knowledge graph',
+                                title: t('toast.error'),
+                                description: error.response?.data?.error || t('ragflow.failedToFetchGraph'),
                                 variant: 'destructive',
                               });
                             } finally {
                               setLoadingGraph(false);
                             }
                           }}
-                          title="View Knowledge Graph"
+                          title={t('ragflow.viewKnowledgeGraph')}
                         >
                           <Network className="h-4 w-4" />
-                        </Button>
+                        </Button> */}
                         <Button
                           variant="ghost"
                           size="icon"
@@ -559,7 +590,8 @@ export default function RAGFlow() {
                             });
                             setEditDialogOpen(true);
                           }}
-                          title="Edit Dataset"
+                          title={t('ragflow.editDataset')}
+                          className="h-8 w-8"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -570,7 +602,8 @@ export default function RAGFlow() {
                             setSelectedDataset(dataset);
                             setDeleteDialogOpen(true);
                           }}
-                          title="Delete Dataset"
+                          title={t('ragflow.deleteDataset')}
+                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -581,135 +614,216 @@ export default function RAGFlow() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create New Dataset</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Dataset Name *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => {
-                  setFormData({ ...formData, name: e.target.value });
-                  if (errors.name) {
-                    const newErrors = { ...errors };
-                    delete newErrors.name;
-                    setErrors(newErrors);
-                  }
-                }}
-                placeholder="Enter unique dataset name (max 128 characters)"
-                required
-                maxLength={128}
-              />
-              {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
-              <p className="text-xs text-muted-foreground">
-                Must be unique, max 128 characters, case-insensitive
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => {
-                  setFormData({ ...formData, description: e.target.value });
-                  if (errors.description) {
-                    const newErrors = { ...errors };
-                    delete newErrors.description;
-                    setErrors(newErrors);
-                  }
-                }}
-                placeholder="Brief description of the dataset"
-                maxLength={65535}
-                rows={3}
-              />
-              {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
-              <p className="text-xs text-muted-foreground">
-                Max 65535 characters
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+        <DialogContent className="max-w-3xl max-h-[90vh]">
+          <div className="overflow-y-auto max-h-[calc(90vh-8rem)]">
+            <DialogHeader>
+              <DialogTitle>{t('ragflow.createDataset')}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+            <TooltipProvider>
               <div className="space-y-2">
-                <Label htmlFor="embedding_model">Embedding Model</Label>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="name">{t('ragflow.datasetName')} *</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button type="button" className="text-muted-foreground hover:text-foreground">
+                        <Info className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>{t('ragflow.tooltips.datasetName')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
                 <Input
-                  id="embedding_model"
-                  value={formData.embedding_model}
+                  id="name"
+                  value={formData.name}
                   onChange={(e) => {
-                    setFormData({ ...formData, embedding_model: e.target.value });
-                    if (errors.embedding_model) {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (errors.name) {
                       const newErrors = { ...errors };
-                      delete newErrors.embedding_model;
+                      delete newErrors.name;
                       setErrors(newErrors);
                     }
                   }}
-                  placeholder="e.g., BAAI/bge-large-zh-v1.5@BAAI"
-                  maxLength={255}
+                  placeholder={t('ragflow.datasetNamePlaceholder')}
+                  required
+                  maxLength={128}
                 />
-                {errors.embedding_model && <p className="text-sm text-destructive">{errors.embedding_model}</p>}
+                {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
                 <p className="text-xs text-muted-foreground">
-                  Format: model_name@model_factory
+                  {t('ragflow.datasetNameDesc')}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="permission">Permission</Label>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="description">{t('common.description')}</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button type="button" className="text-muted-foreground hover:text-foreground">
+                        <Info className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>{t('ragflow.tooltips.description')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => {
+                    setFormData({ ...formData, description: e.target.value });
+                    if (errors.description) {
+                      const newErrors = { ...errors };
+                      delete newErrors.description;
+                      setErrors(newErrors);
+                    }
+                  }}
+                  placeholder={t('ragflow.descriptionPlaceholder')}
+                  maxLength={65535}
+                  rows={3}
+                />
+                {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
+                <p className="text-xs text-muted-foreground">
+                  Max 65535 characters
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="embedding_model">{t('ragflow.embeddingModel')}</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="text-muted-foreground hover:text-foreground">
+                          <Info className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>{t('ragflow.tooltips.embeddingModel')}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Select
+                    value={formData.embedding_model}
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, embedding_model: value });
+                      if (errors.embedding_model) {
+                        const newErrors = { ...errors };
+                        delete newErrors.embedding_model;
+                        setErrors(newErrors);
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="embedding_model">
+                      <SelectValue placeholder={t('ragflow.embeddingModelPlaceholder')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="text-embedding-3-large@OpenAI">text-embedding-3-large@OpenAI</SelectItem>
+                      <SelectItem value="text-embedding-3-small@OpenAI">text-embedding-3-small@OpenAI</SelectItem>
+                      <SelectItem value="text-embedding-ada-002@OpenAI">text-embedding-ada-002@OpenAI</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {errors.embedding_model && <p className="text-sm text-destructive">{errors.embedding_model}</p>}
+                  <p className="text-xs text-muted-foreground">
+                    {t('ragflow.embeddingModelDesc')}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="permission">{t('ragflow.permission')}</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="text-muted-foreground hover:text-foreground">
+                          <Info className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>{t('ragflow.tooltips.permission')}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Select
+                    value={formData.permission}
+                    onValueChange={(value) => setFormData({ ...formData, permission: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="me">{t('ragflow.permissionMe')}</SelectItem>
+                      <SelectItem value="team">{t('ragflow.permissionTeam')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="chunk_method">{t('ragflow.chunkMethod')}</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button type="button" className="text-muted-foreground hover:text-foreground">
+                        <Info className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>{t('ragflow.tooltips.chunkMethod')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
                 <Select
-                  value={formData.permission}
-                  onValueChange={(value) => setFormData({ ...formData, permission: value })}
+                  value={formData.chunk_method}
+                  onValueChange={(value) => setFormData({ ...formData, chunk_method: value })}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="me">Me (Default)</SelectItem>
-                    <SelectItem value="team">Team</SelectItem>
+                    <SelectItem value="naive">{t('ragflow.chunkMethodNaive')}</SelectItem>
+                    <SelectItem value="book">{t('ragflow.chunkMethodBook')}</SelectItem>
+                    <SelectItem value="email">{t('ragflow.chunkMethodEmail')}</SelectItem>
+                    <SelectItem value="laws">{t('ragflow.chunkMethodLaws')}</SelectItem>
+                    <SelectItem value="manual">{t('ragflow.chunkMethodManual')}</SelectItem>
+                    <SelectItem value="one">{t('ragflow.chunkMethodOne')}</SelectItem>
+                    <SelectItem value="paper">{t('ragflow.chunkMethodPaper')}</SelectItem>
+                    <SelectItem value="picture">{t('ragflow.chunkMethodPicture')}</SelectItem>
+                    <SelectItem value="presentation">{t('ragflow.chunkMethodPresentation')}</SelectItem>
+                    <SelectItem value="qa">{t('ragflow.chunkMethodQa')}</SelectItem>
+                    <SelectItem value="table">{t('ragflow.chunkMethodTable')}</SelectItem>
+                    <SelectItem value="tag">{t('ragflow.chunkMethodTag')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="chunk_method">Chunk Method</Label>
-              <Select
-                value={formData.chunk_method}
-                onValueChange={(value) => setFormData({ ...formData, chunk_method: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="naive">Naive (General)</SelectItem>
-                  <SelectItem value="book">Book</SelectItem>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="laws">Laws</SelectItem>
-                  <SelectItem value="manual">Manual</SelectItem>
-                  <SelectItem value="one">One</SelectItem>
-                  <SelectItem value="paper">Paper</SelectItem>
-                  <SelectItem value="picture">Picture</SelectItem>
-                  <SelectItem value="presentation">Presentation</SelectItem>
-                  <SelectItem value="qa">Q&A</SelectItem>
-                  <SelectItem value="table">Table</SelectItem>
-                  <SelectItem value="tag">Tag</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
 
             {/* Parser Config for Naive chunk method */}
             {formData.chunk_method === 'naive' && (
               <div className="space-y-4 border rounded-lg p-4">
-                <h3 className="font-semibold">Parser Configuration (Naive)</h3>
+                <h3 className="font-semibold">{t('ragflow.parserConfig')}</h3>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="chunk_token_num">Chunk Token Num</Label>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="chunk_token_num">{t('ragflow.chunkTokenNum')}</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="text-muted-foreground hover:text-foreground">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>{t('ragflow.tooltips.chunkTokenNum')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <Input
                       id="chunk_token_num"
                       type="number"
@@ -719,22 +833,46 @@ export default function RAGFlow() {
                       onChange={(e) => handleParserConfigChange('chunk_token_num', e.target.value)}
                     />
                     {errors.chunk_token_num && <p className="text-sm text-destructive">{errors.chunk_token_num}</p>}
-                    <p className="text-xs text-muted-foreground">Default: 512, Range: 1-2048</p>
+                    <p className="text-xs text-muted-foreground">{t('ragflow.chunkTokenNumDesc')}</p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="delimiter">Delimiter</Label>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="delimiter">{t('ragflow.delimiter')}</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="text-muted-foreground hover:text-foreground">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>{t('ragflow.tooltips.delimiter')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <Input
                       id="delimiter"
                       value={formData.parser_config.delimiter || '\n'}
                       onChange={(e) => handleParserConfigChange('delimiter', e.target.value)}
                       placeholder="\n"
                     />
-                    <p className="text-xs text-muted-foreground">Default: \n</p>
+                    <p className="text-xs text-muted-foreground">{t('ragflow.delimiterDesc')}</p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="auto_keywords">Auto Keywords</Label>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="auto_keywords">{t('ragflow.autoKeywords')}</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="text-muted-foreground hover:text-foreground">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>{t('ragflow.tooltips.autoKeywords')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <Input
                       id="auto_keywords"
                       type="number"
@@ -744,11 +882,23 @@ export default function RAGFlow() {
                       onChange={(e) => handleParserConfigChange('auto_keywords', e.target.value)}
                     />
                     {errors.auto_keywords && <p className="text-sm text-destructive">{errors.auto_keywords}</p>}
-                    <p className="text-xs text-muted-foreground">Range: 0-32</p>
+                    <p className="text-xs text-muted-foreground">{t('ragflow.autoKeywordsDesc')}</p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="auto_questions">Auto Questions</Label>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="auto_questions">{t('ragflow.autoQuestions')}</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="text-muted-foreground hover:text-foreground">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>{t('ragflow.tooltips.autoQuestions')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <Input
                       id="auto_questions"
                       type="number"
@@ -758,11 +908,23 @@ export default function RAGFlow() {
                       onChange={(e) => handleParserConfigChange('auto_questions', e.target.value)}
                     />
                     {errors.auto_questions && <p className="text-sm text-destructive">{errors.auto_questions}</p>}
-                    <p className="text-xs text-muted-foreground">Range: 0-10</p>
+                    <p className="text-xs text-muted-foreground">{t('ragflow.autoQuestionsDesc')}</p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="task_page_size">Task Page Size (PDF only)</Label>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="task_page_size">{t('ragflow.taskPageSize')}</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="text-muted-foreground hover:text-foreground">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>{t('ragflow.tooltips.taskPageSize')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <Input
                       id="task_page_size"
                       type="number"
@@ -771,11 +933,23 @@ export default function RAGFlow() {
                       onChange={(e) => handleParserConfigChange('task_page_size', e.target.value)}
                     />
                     {errors.task_page_size && <p className="text-sm text-destructive">{errors.task_page_size}</p>}
-                    <p className="text-xs text-muted-foreground">Default: 12</p>
+                    <p className="text-xs text-muted-foreground">{t('ragflow.taskPageSizeDesc')}</p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="layout_recognize">Layout Recognize</Label>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="layout_recognize">{t('ragflow.layoutRecognize')}</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="text-muted-foreground hover:text-foreground">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>{t('ragflow.tooltips.layoutRecognize')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <Select
                       value={formData.parser_config.layout_recognize || 'DeepDOC'}
                       onValueChange={(value) => handleParserConfigChange('layout_recognize', value)}
@@ -798,32 +972,60 @@ export default function RAGFlow() {
                     onChange={(e) => handleParserConfigChange('html4excel', e.target.checked)}
                     className="rounded border-gray-300"
                   />
-                  <Label htmlFor="html4excel" className="cursor-pointer">
-                    Convert Excel to HTML (html4excel)
-                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="html4excel" className="cursor-pointer">
+                      {t('ragflow.html4excel')}
+                    </Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="text-muted-foreground hover:text-foreground">
+                          <Info className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>{t('ragflow.tooltips.html4excel')}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                 </div>
               </div>
             )}
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleDialogClose}>
-                Cancel
-              </Button>
-              <Button type="submit">Create Dataset</Button>
-            </DialogFooter>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={handleDialogClose}>
+                  {t('common.cancel')}
+                </Button>
+                <Button type="submit">{t('ragflow.createDataset')}</Button>
+              </DialogFooter>
+            </TooltipProvider>
           </form>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Edit Dataset Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Dataset</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleUpdateDataset} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit_name">Dataset Name *</Label>
+        <DialogContent className="max-w-3xl max-h-[90vh]">
+          <div className="overflow-y-auto max-h-[calc(90vh-8rem)]">
+            <DialogHeader>
+              <DialogTitle>{t('ragflow.editDataset')}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleUpdateDataset} className="space-y-4">
+              <TooltipProvider>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="edit_name">{t('ragflow.datasetName')} *</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="text-muted-foreground hover:text-foreground">
+                          <Info className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>{t('ragflow.tooltips.datasetName')}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
               <Input
                 id="edit_name"
                 value={formData.name}
@@ -835,15 +1037,30 @@ export default function RAGFlow() {
                     setErrors(newErrors);
                   }
                 }}
-                placeholder="Enter unique dataset name (max 128 characters)"
-                required
-                maxLength={128}
-              />
-              {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
-            </div>
+                  placeholder={t('ragflow.datasetNamePlaceholder')}
+                  required
+                  maxLength={128}
+                />
+                {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+                <p className="text-xs text-muted-foreground">
+                  {t('ragflow.datasetNameDesc')}
+                </p>
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit_description">Description</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="edit_description">{t('common.description')}</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="text-muted-foreground hover:text-foreground">
+                          <Info className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>{t('ragflow.tooltips.description')}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
               <Textarea
                 id="edit_description"
                 value={formData.description}
@@ -855,35 +1072,68 @@ export default function RAGFlow() {
                     setErrors(newErrors);
                   }
                 }}
-                placeholder="Brief description of the dataset"
-                maxLength={65535}
-                rows={3}
-              />
-              {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
-            </div>
+                  placeholder={t('ragflow.descriptionPlaceholder')}
+                  maxLength={65535}
+                  rows={3}
+                />
+                {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
+                </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit_embedding_model">Embedding Model</Label>
-                <Input
-                  id="edit_embedding_model"
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="edit_embedding_model">{t('ragflow.embeddingModel')}</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="text-muted-foreground hover:text-foreground">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>{t('ragflow.tooltips.embeddingModel')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                <Select
                   value={formData.embedding_model}
-                  onChange={(e) => {
-                    setFormData({ ...formData, embedding_model: e.target.value });
+                  onValueChange={(value) => {
+                    setFormData({ ...formData, embedding_model: value });
                     if (errors.embedding_model) {
                       const newErrors = { ...errors };
                       delete newErrors.embedding_model;
                       setErrors(newErrors);
                     }
                   }}
-                  placeholder="e.g., BAAI/bge-large-zh-v1.5@BAAI"
-                  maxLength={255}
-                />
-                {errors.embedding_model && <p className="text-sm text-destructive">{errors.embedding_model}</p>}
-              </div>
+                >
+                    <SelectTrigger id="edit_embedding_model">
+                      <SelectValue placeholder={t('ragflow.embeddingModelPlaceholder')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="text-embedding-3-large@OpenAI">text-embedding-3-large@OpenAI</SelectItem>
+                      <SelectItem value="text-embedding-3-small@OpenAI">text-embedding-3-small@OpenAI</SelectItem>
+                      <SelectItem value="text-embedding-ada-002@OpenAI">text-embedding-ada-002@OpenAI</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {errors.embedding_model && <p className="text-sm text-destructive">{errors.embedding_model}</p>}
+                  <p className="text-xs text-muted-foreground">
+                    {t('ragflow.embeddingModelDesc')}
+                  </p>
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="edit_permission">Permission</Label>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="edit_permission">{t('ragflow.permission')}</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="text-muted-foreground hover:text-foreground">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>{t('ragflow.tooltips.permission')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                 <Select
                   value={formData.permission}
                   onValueChange={(value) => setFormData({ ...formData, permission: value })}
@@ -891,141 +1141,260 @@ export default function RAGFlow() {
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="me">Me (Default)</SelectItem>
-                    <SelectItem value="team">Team</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+                    <SelectContent>
+                      <SelectItem value="me">{t('ragflow.permissionMe')}</SelectItem>
+                      <SelectItem value="team">{t('ragflow.permissionTeam')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit_chunk_method">Chunk Method</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="edit_chunk_method">{t('ragflow.chunkMethod')}</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="text-muted-foreground hover:text-foreground">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>{t('ragflow.tooltips.chunkMethod')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                 <Select
                   value={formData.chunk_method}
                   onValueChange={(value) => setFormData({ ...formData, chunk_method: value })}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="naive">Naive (General)</SelectItem>
-                    <SelectItem value="book">Book</SelectItem>
-                    <SelectItem value="email">Email</SelectItem>
-                    <SelectItem value="laws">Laws</SelectItem>
-                    <SelectItem value="manual">Manual</SelectItem>
-                    <SelectItem value="one">One</SelectItem>
-                    <SelectItem value="paper">Paper</SelectItem>
-                    <SelectItem value="picture">Picture</SelectItem>
-                    <SelectItem value="presentation">Presentation</SelectItem>
-                    <SelectItem value="qa">Q&A</SelectItem>
-                    <SelectItem value="table">Table</SelectItem>
-                    <SelectItem value="tag">Tag</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="edit_pagerank">Page Rank</Label>
-                <Input
-                  id="edit_pagerank"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={formData.pagerank || 0}
-                  onChange={(e) => setFormData({ ...formData, pagerank: parseInt(e.target.value) || 0 })}
-                />
-                <p className="text-xs text-muted-foreground">Range: 0-100</p>
-              </div>
-            </div>
-
-            {/* Parser Config for Naive chunk method */}
-            {formData.chunk_method === 'naive' && (
-              <div className="space-y-4 border rounded-lg p-4">
-                <h3 className="font-semibold">Parser Configuration (Naive)</h3>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_chunk_token_num">Chunk Token Num</Label>
-                    <Input
-                      id="edit_chunk_token_num"
-                      type="number"
-                      min="1"
-                      max="2048"
-                      value={formData.parser_config.chunk_token_num}
-                      onChange={(e) => handleParserConfigChange('chunk_token_num', e.target.value)}
-                    />
-                    {errors.chunk_token_num && <p className="text-sm text-destructive">{errors.chunk_token_num}</p>}
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="naive">{t('ragflow.chunkMethodNaive')}</SelectItem>
+                      <SelectItem value="book">{t('ragflow.chunkMethodBook')}</SelectItem>
+                      <SelectItem value="email">{t('ragflow.chunkMethodEmail')}</SelectItem>
+                      <SelectItem value="laws">{t('ragflow.chunkMethodLaws')}</SelectItem>
+                      <SelectItem value="manual">{t('ragflow.chunkMethodManual')}</SelectItem>
+                      <SelectItem value="one">{t('ragflow.chunkMethodOne')}</SelectItem>
+                      <SelectItem value="paper">{t('ragflow.chunkMethodPaper')}</SelectItem>
+                      <SelectItem value="picture">{t('ragflow.chunkMethodPicture')}</SelectItem>
+                      <SelectItem value="presentation">{t('ragflow.chunkMethodPresentation')}</SelectItem>
+                      <SelectItem value="qa">{t('ragflow.chunkMethodQa')}</SelectItem>
+                      <SelectItem value="table">{t('ragflow.chunkMethodTable')}</SelectItem>
+                      <SelectItem value="tag">{t('ragflow.chunkMethodTag')}</SelectItem>
+                    </SelectContent>
+                  </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="edit_delimiter">Delimiter</Label>
+                    <Label htmlFor="edit_pagerank">{t('ragflow.pageRank')}</Label>
                     <Input
-                      id="edit_delimiter"
-                      value={formData.parser_config.delimiter || '\n'}
-                      onChange={(e) => handleParserConfigChange('delimiter', e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_auto_keywords">Auto Keywords</Label>
-                    <Input
-                      id="edit_auto_keywords"
+                      id="edit_pagerank"
                       type="number"
                       min="0"
-                      max="32"
-                      value={formData.parser_config.auto_keywords}
-                      onChange={(e) => handleParserConfigChange('auto_keywords', e.target.value)}
+                      max="100"
+                      value={formData.pagerank || 0}
+                      onChange={(e) => setFormData({ ...formData, pagerank: parseInt(e.target.value) || 0 })}
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_auto_questions">Auto Questions</Label>
-                    <Input
-                      id="edit_auto_questions"
-                      type="number"
-                      min="0"
-                      max="10"
-                      value={formData.parser_config.auto_questions}
-                      onChange={(e) => handleParserConfigChange('auto_questions', e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_task_page_size">Task Page Size</Label>
-                    <Input
-                      id="edit_task_page_size"
-                      type="number"
-                      min="1"
-                      value={formData.parser_config.task_page_size}
-                      onChange={(e) => handleParserConfigChange('task_page_size', e.target.value)}
-                    />
+                    <p className="text-xs text-muted-foreground">{t('ragflow.pageRankRange')}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="edit_html4excel"
-                    checked={formData.parser_config.html4excel || false}
-                    onChange={(e) => handleParserConfigChange('html4excel', e.target.checked)}
-                    className="rounded border-gray-300"
-                  />
-                  <Label htmlFor="edit_html4excel" className="cursor-pointer">
-                    Convert Excel to HTML (html4excel)
-                  </Label>
-                </div>
-              </div>
-            )}
+                {/* Parser Config for Naive chunk method */}
+                {formData.chunk_method === 'naive' && (
+                  <div className="space-y-4 border rounded-lg p-4">
+                    <h3 className="font-semibold">{t('ragflow.parserConfig')}</h3>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="edit_chunk_token_num">{t('ragflow.chunkTokenNum')}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('ragflow.tooltips.chunkTokenNum')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <Input
+                          id="edit_chunk_token_num"
+                          type="number"
+                          min="1"
+                          max="2048"
+                          value={formData.parser_config.chunk_token_num}
+                          onChange={(e) => handleParserConfigChange('chunk_token_num', e.target.value)}
+                        />
+                        {errors.chunk_token_num && <p className="text-sm text-destructive">{errors.chunk_token_num}</p>}
+                        <p className="text-xs text-muted-foreground">{t('ragflow.chunkTokenNumDesc')}</p>
+                      </div>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit">Update Dataset</Button>
-            </DialogFooter>
-          </form>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="edit_delimiter">{t('ragflow.delimiter')}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('ragflow.tooltips.delimiter')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <Input
+                          id="edit_delimiter"
+                          value={formData.parser_config.delimiter || '\n'}
+                          onChange={(e) => handleParserConfigChange('delimiter', e.target.value)}
+                          placeholder="\n"
+                        />
+                        <p className="text-xs text-muted-foreground">{t('ragflow.delimiterDesc')}</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="edit_auto_keywords">{t('ragflow.autoKeywords')}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('ragflow.tooltips.autoKeywords')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <Input
+                          id="edit_auto_keywords"
+                          type="number"
+                          min="0"
+                          max="32"
+                          value={formData.parser_config.auto_keywords}
+                          onChange={(e) => handleParserConfigChange('auto_keywords', e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">{t('ragflow.autoKeywordsDesc')}</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="edit_auto_questions">{t('ragflow.autoQuestions')}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('ragflow.tooltips.autoQuestions')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <Input
+                          id="edit_auto_questions"
+                          type="number"
+                          min="0"
+                          max="10"
+                          value={formData.parser_config.auto_questions}
+                          onChange={(e) => handleParserConfigChange('auto_questions', e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">{t('ragflow.autoQuestionsDesc')}</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="edit_task_page_size">{t('ragflow.taskPageSize')}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('ragflow.tooltips.taskPageSize')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <Input
+                          id="edit_task_page_size"
+                          type="number"
+                          min="1"
+                          value={formData.parser_config.task_page_size}
+                          onChange={(e) => handleParserConfigChange('task_page_size', e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">{t('ragflow.taskPageSizeDesc')}</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="edit_layout_recognize">{t('ragflow.layoutRecognize')}</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{t('ragflow.tooltips.layoutRecognize')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <Select
+                          value={formData.parser_config.layout_recognize || 'DeepDOC'}
+                          onValueChange={(value) => handleParserConfigChange('layout_recognize', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="DeepDOC">DeepDOC</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="edit_html4excel"
+                        checked={formData.parser_config.html4excel || false}
+                        onChange={(e) => handleParserConfigChange('html4excel', e.target.checked)}
+                        className="rounded border-gray-300"
+                      />
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="edit_html4excel" className="cursor-pointer">
+                          {t('ragflow.html4excel')}
+                        </Label>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button type="button" className="text-muted-foreground hover:text-foreground">
+                              <Info className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p>{t('ragflow.tooltips.html4excel')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
+                    {t('common.cancel')}
+                  </Button>
+                  <Button type="submit">{t('ragflow.editDataset')}</Button>
+                </DialogFooter>
+              </TooltipProvider>
+            </form>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -1033,16 +1402,16 @@ export default function RAGFlow() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Dataset</DialogTitle>
+            <DialogTitle>{t('ragflow.deleteDataset')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p>
-              Are you sure you want to delete <strong>{selectedDataset?.name}</strong>?
+              {t('ragflow.deleteConfirm')} <strong>{selectedDataset?.name}</strong>?
             </p>
             {selectedDatasets.length > 0 && !selectedDataset && (
               <div className="p-3 bg-yellow-50 border border-yellow-200 rounded">
                 <p className="text-sm text-yellow-800">
-                  {selectedDatasets.length} dataset(s) selected. You can delete them all at once.
+                  {selectedDatasets.length} {t('ragflow.deleteConfirmMultiple')}
                 </p>
               </div>
             )}
@@ -1051,14 +1420,14 @@ export default function RAGFlow() {
                 setDeleteDialogOpen(false);
                 setSelectedDataset(null);
               }}>
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button
                 type="button"
                 variant="destructive"
                 onClick={handleDeleteDataset}
               >
-                Delete
+                {t('common.delete')}
               </Button>
             </DialogFooter>
           </div>

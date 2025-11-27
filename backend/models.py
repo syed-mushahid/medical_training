@@ -103,7 +103,7 @@ class Student(db.Model):
         if include_user:
             data['user'] = self.user.to_dict() if self.user else None
         if include_groups:
-            data['groups'] = [group.to_dict(include_instructors=True) for group in self.groups]
+            data['groups'] = [group.to_dict(include_students=True, include_instructors=True) for group in self.groups]
         return data
 
 class StudentGroup(db.Model):
@@ -129,7 +129,7 @@ class StudentGroup(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
         if include_students:
-            data['students'] = [student.to_dict() for student in self.students]
+            data['students'] = [student.to_dict(include_user=True) for student in self.students]
         if include_instructors:
             data['instructors'] = [instructor.to_dict() for instructor in self.instructors]
         return data

@@ -1,12 +1,16 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from './ui/button';
-import { LogOut, Users, GraduationCap, BookOpen, LayoutDashboard, Database, MessageSquare, UserCircle, Shield } from 'lucide-react';
+import { LogOut, Users, GraduationCap, BookOpen, LayoutDashboard, Database, MessageSquare, UserCircle, Shield, Plus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from './LanguageSwitcher';
+import NewChatButton from './NewChatButton';
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleLogout = () => {
     logout();
@@ -37,29 +41,27 @@ export default function Layout({ children }) {
   
   if (user?.role === 'admin') {
     navItems.push(
-      { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-      { path: '/instructors', label: 'Instructors', icon: Users },
-      { path: '/students', label: 'Students', icon: GraduationCap },
-      { path: '/student-groups', label: 'Student Groups', icon: BookOpen },
-      { path: '/ragflow', label: 'Dataset', icon: Database },
-      { path: '/ragflow/chats', label: 'Chat Assistants', icon: MessageSquare },
-      { path: '/admin/profile', label: 'Profile Information', icon: Shield }
+      { path: '/', label: t('layout.dashboard'), icon: LayoutDashboard },
+      { path: '/instructors', label: t('layout.instructors'), icon: Users },
+      { path: '/students', label: t('layout.students'), icon: GraduationCap },
+      { path: '/student-groups', label: t('layout.studentGroups'), icon: BookOpen },
+      { path: '/admin/profile', label: t('layout.profileInformation'), icon: Shield }
     );
   } else if (user?.role === 'instructor') {
     navItems.push(
-      { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-      { path: '/students', label: 'Students', icon: GraduationCap },
-      { path: '/student-groups', label: 'Student Groups', icon: BookOpen },
-      { path: '/ragflow', label: 'Dataset', icon: Database },
-      { path: '/ragflow/chats', label: 'Chat Assistants', icon: MessageSquare },
-      { path: '/instructor/profile', label: 'Profile Information', icon: UserCircle }
+      { path: '/', label: t('layout.dashboard'), icon: LayoutDashboard },
+      { path: '/students', label: t('layout.students'), icon: GraduationCap },
+      { path: '/student-groups', label: t('layout.studentGroups'), icon: BookOpen },
+      { path: '/ragflow', label: t('layout.dataset'), icon: Database },
+      { path: '/ragflow/chats', label: t('layout.chatAssistants'), icon: MessageSquare },
+      { path: '/instructor/profile', label: t('layout.profileInformation'), icon: UserCircle }
     );
   } else if (user?.role === 'student') {
     navItems.push(
-      { path: '/', label: 'My Dashboard', icon: LayoutDashboard },
-      { path: '/student/my-groups', label: 'My Groups', icon: BookOpen },
-      { path: '/student/chats', label: 'Chat Assistants', icon: MessageSquare },
-      { path: '/student/profile', label: 'Profile Information', icon: UserCircle }
+      { path: '/', label: t('layout.history'), icon: LayoutDashboard },
+      { path: '/student/my-groups', label: t('layout.myGroups'), icon: BookOpen },
+      { path: '/student/chats', label: t('layout.chatAssistants'), icon: MessageSquare },
+      { path: '/student/profile', label: t('layout.profileInformation'), icon: UserCircle }
     );
   }
 
@@ -68,13 +70,23 @@ export default function Layout({ children }) {
       {/* Sidebar */}
       <aside className="w-64 bg-card border-r flex flex-col">
         {/* Logo/Title */}
-        <div className="h-16 border-b flex items-center px-6">
-          <h1 className="text-xl font-bold text-primary">Training Portal</h1>
+        <div className="h-16 border-b flex items-center justify-between px-6">
+          <h1 className="text-xl font-bold text-primary">{t('layout.trainingPortal')}</h1>
+          <LanguageSwitcher />
         </div>
         
         {/* Navigation Items */}
         <nav className="flex-1 overflow-y-auto py-4">
           <div className="space-y-1 px-3">
+            {user?.role === 'student' && (
+              <div className="mb-2 px-3">
+                <NewChatButton 
+                  variant="default" 
+                  size="default" 
+                  className="w-full justify-start"
+                />
+              </div>
+            )}
             {navItems.map((item) => (
               <Link key={item.path} to={item.path}>
                 <Button
@@ -103,7 +115,7 @@ export default function Layout({ children }) {
             className="w-full justify-start"
           >
             <LogOut className="h-4 w-4 mr-3" />
-            Logout
+            {t('layout.logout')}
           </Button>
         </div>
       </aside>

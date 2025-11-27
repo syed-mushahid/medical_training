@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getRagflowUrl } from '../config';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { Button } from '../components/ui/button';
@@ -18,6 +19,7 @@ import { useToast } from '../components/ui/use-toast.jsx';
 import { ArrowLeft, Plus, RefreshCw, Trash2, Edit, Search } from 'lucide-react';
 import { Textarea } from '../components/ui/textarea';
 import Loading from '../components/Loading';
+import { useTranslation } from 'react-i18next';
 
 export default function DocumentChunks() {
   const { datasetId, documentId } = useParams();
@@ -39,6 +41,7 @@ export default function DocumentChunks() {
   const [keywordInput, setKeywordInput] = useState('');
   const [questionInput, setQuestionInput] = useState('');
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   useEffect(() => {
     fetchChunks();
@@ -56,15 +59,15 @@ export default function DocumentChunks() {
         setTotal(response.data.total || 0);
       } else {
         toast({
-          title: 'Error',
-          description: response.data.error || 'Failed to fetch chunks',
+          title: t('toast.error'),
+          description: response.data.error || t('chunks.failedToFetch'),
           variant: 'destructive',
         });
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to fetch chunks',
+        title: t('toast.error'),
+        description: error.response?.data?.error || t('chunks.failedToFetch'),
         variant: 'destructive',
       });
     } finally {
@@ -174,23 +177,23 @@ export default function DocumentChunks() {
 
       if (response.data.success) {
         toast({
-          title: 'Success',
-          description: 'Chunk added successfully',
+          title: t('toast.success'),
+          description: t('chunks.chunkAdded'),
         });
         setAddDialogOpen(false);
         resetForm();
         fetchChunks();
       } else {
         toast({
-          title: 'Error',
-          description: response.data.error || 'Failed to add chunk',
+          title: t('toast.error'),
+          description: response.data.error || t('chunks.failedToAdd'),
           variant: 'destructive',
         });
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to add chunk',
+        title: t('toast.error'),
+        description: error.response?.data?.error || t('chunks.failedToAdd'),
         variant: 'destructive',
       });
     }
@@ -232,14 +235,14 @@ export default function DocumentChunks() {
 
       if (response.data.success) {
         toast({
-          title: 'Success',
-          description: `Chunk ${newAvailability ? 'enabled' : 'disabled'} successfully`,
+          title: t('toast.success'),
+          description: newAvailability ? t('chunks.chunkEnabled') : t('chunks.chunkDisabled'),
         });
         fetchChunks();
       } else {
         toast({
-          title: 'Error',
-          description: response.data.error || 'Failed to update chunk availability',
+          title: t('toast.error'),
+          description: response.data.error || t('chunks.failedToUpdateAvailability'),
           variant: 'destructive',
         });
         // Revert the change on error
@@ -247,8 +250,8 @@ export default function DocumentChunks() {
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to update chunk availability',
+        title: t('toast.error'),
+        description: error.response?.data?.error || t('chunks.failedToUpdateAvailability'),
         variant: 'destructive',
       });
       // Revert the change on error
@@ -261,8 +264,8 @@ export default function DocumentChunks() {
 
     if (!formData.content.trim()) {
       toast({
-        title: 'Error',
-        description: 'Chunk content is required',
+        title: t('toast.error'),
+        description: t('chunks.chunkContentRequired'),
         variant: 'destructive',
       });
       return;
@@ -284,8 +287,8 @@ export default function DocumentChunks() {
 
       if (response.data.success) {
         toast({
-          title: 'Success',
-          description: 'Chunk updated successfully',
+          title: t('toast.success'),
+          description: t('chunks.chunkUpdated'),
         });
         setEditDialogOpen(false);
         setEditingChunk(null);
@@ -293,15 +296,15 @@ export default function DocumentChunks() {
         fetchChunks();
       } else {
         toast({
-          title: 'Error',
-          description: response.data.error || 'Failed to update chunk',
+          title: t('toast.error'),
+          description: response.data.error || t('chunks.failedToUpdate'),
           variant: 'destructive',
         });
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to update chunk',
+        title: t('toast.error'),
+        description: error.response?.data?.error || t('chunks.failedToUpdate'),
         variant: 'destructive',
       });
     }
@@ -329,21 +332,21 @@ export default function DocumentChunks() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Chunks</h1>
+            <h1 className="text-2xl font-bold">{t('chunks.title')}</h1>
             <p className="text-muted-foreground mt-1 text-sm">
-              Manage chunks for: <strong>{document?.name || document?.location || 'Unknown Document'}</strong>
-              {' '}({total} total chunks)
+              {t('chunks.subtitle')}: <strong>{document?.name || document?.location || t('chunks.unknownDocument')}</strong>
+              {' '}({total} {t('chunks.totalChunks')})
             </p>
           </div>
         </div>
         <div className="flex space-x-2">
           <Button variant="outline" onClick={fetchChunks}>
             <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+            {t('common.refresh')}
           </Button>
           <Button onClick={() => setAddDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Add Chunk
+            {t('chunks.addChunk')}
           </Button>
         </div>
       </div>
@@ -355,7 +358,7 @@ export default function DocumentChunks() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search chunks by content, keywords, ID, or document keyword..."
+              placeholder={t('chunks.searchChunks')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -363,7 +366,10 @@ export default function DocumentChunks() {
           </div>
           {searchQuery && (
             <p className="text-sm text-muted-foreground mt-2">
-              Found {filteredChunks.length} chunk{filteredChunks.length !== 1 ? 's' : ''} matching "{searchQuery}"
+              {filteredChunks.length === 1 
+                ? t('chunks.chunkFound', { query: searchQuery })
+                : t('chunks.chunksFound', { count: filteredChunks.length, query: searchQuery })
+              }
             </p>
           )}
         </CardContent>
@@ -373,7 +379,7 @@ export default function DocumentChunks() {
         {filteredChunks.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center">
-              <p className="text-muted-foreground">No chunks found</p>
+              <p className="text-muted-foreground">{t('chunks.noChunksFound')}</p>
             </CardContent>
           </Card>
         ) : (
@@ -382,9 +388,9 @@ export default function DocumentChunks() {
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div>
-                    <CardTitle className="text-lg">Chunk Details</CardTitle>
+                    <CardTitle className="text-lg">{t('chunks.chunkDetails')}</CardTitle>
                     <p className="text-sm text-muted-foreground font-mono mt-1">
-                      ID: {chunk.id || '-'}
+                      {t('chunks.chunkId')}: {chunk.id || '-'}
                     </p>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -392,12 +398,12 @@ export default function DocumentChunks() {
                       variant="ghost"
                       size="icon"
                       onClick={() => handleEdit(chunk)}
-                      title="Edit Chunk"
+                      title={t('chunks.editChunk')}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
                     <div className="flex items-center space-x-2">
-                      <label className="text-sm text-muted-foreground">Available:</label>
+                      <label className="text-sm text-muted-foreground">{t('chunks.available')}:</label>
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
                           type="checkbox"
@@ -414,7 +420,7 @@ export default function DocumentChunks() {
               <CardContent className="space-y-4">
                 {/* Content Section */}
                 <div className="space-y-2">
-                  <Label className="text-base font-semibold">Content</Label>
+                  <Label className="text-base font-semibold">{t('chunks.chunkContent')}</Label>
                   <div className="p-4 bg-gray-50 rounded-lg border">
                     <p className="whitespace-pre-wrap text-sm">{chunk.content || '-'}</p>
                   </div>
@@ -423,17 +429,17 @@ export default function DocumentChunks() {
                 {/* Image Section */}
                 {chunk.image_id && chunk.image_id.trim() && (
                   <div className="space-y-2">
-                    <Label className="text-base font-semibold">Image</Label>
+                    <Label className="text-base font-semibold">{t('chunks.image')}</Label>
                     <div className="p-4 bg-gray-50 rounded-lg border">
                       <div className="space-y-2">
-                        <span className="text-sm text-muted-foreground">Image ID: {chunk.image_id}</span>
+                        <span className="text-sm text-muted-foreground">{t('chunks.imageId')}: {chunk.image_id}</span>
                         <div className="flex justify-center">
                           <img
-                            src={`http://localhost/v1/document/image/${chunk.image_id}`}
-                            alt="Chunk image"
+                            src={getRagflowUrl(`/v1/document/image/${chunk.image_id}`)}
+                            alt={t('chunks.chunkImage')}
                             className="max-w-full max-h-96 h-auto rounded border shadow-sm"
                             onError={(e) => {
-                              e.target.parentElement.innerHTML = '<p class="text-sm text-muted-foreground">Image not available</p>';
+                              e.target.parentElement.innerHTML = `<p class="text-sm text-muted-foreground">${t('chunks.imageNotAvailable')}</p>`;
                             }}
                           />
                         </div>
@@ -448,7 +454,7 @@ export default function DocumentChunks() {
                   (Array.isArray(chunk.important_keywords) && chunk.important_keywords.length > 0)
                 ) && (
                   <div className="space-y-2">
-                    <Label className="text-base font-semibold">Important Keywords</Label>
+                    <Label className="text-base font-semibold">{t('chunks.importantKeywords')}</Label>
                     <div className="flex flex-wrap gap-2">
                       {typeof chunk.important_keywords === 'string' 
                         ? chunk.important_keywords.split(',').filter(kw => kw.trim()).map((kw, i) => (
@@ -469,7 +475,7 @@ export default function DocumentChunks() {
                 {/* Questions Section */}
                 {chunk.questions && chunk.questions.length > 0 && (
                   <div className="space-y-2">
-                    <Label className="text-base font-semibold">Questions</Label>
+                    <Label className="text-base font-semibold">{t('chunks.questions')}</Label>
                     <div className="space-y-2">
                       {chunk.questions.map((q, i) => (
                         <div key={i} className="p-3 bg-gray-50 rounded-lg border-l-4 border-blue-500">
@@ -483,7 +489,7 @@ export default function DocumentChunks() {
                 {/* Positions Section */}
                 {chunk.positions && Array.isArray(chunk.positions) && chunk.positions.length > 0 && chunk.positions.some(p => p && (typeof p === 'string' ? p.trim() : String(p).trim())) && (
                   <div className="space-y-2">
-                    <Label className="text-base font-semibold">Positions</Label>
+                    <Label className="text-base font-semibold">{t('chunks.positions')}</Label>
                     <div className="flex flex-wrap gap-2">
                       {chunk.positions
                         .filter(p => p && (typeof p === 'string' ? p.trim() : String(p).trim()))
@@ -500,13 +506,13 @@ export default function DocumentChunks() {
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                   {chunk.docnm_kwd && (
                     <div>
-                      <Label className="text-sm text-muted-foreground">Document Keyword</Label>
+                      <Label className="text-sm text-muted-foreground">{t('chunks.documentKeyword')}</Label>
                       <p className="text-sm font-medium">{chunk.docnm_kwd}</p>
                     </div>
                   )}
                   {chunk.document_id && (
                     <div>
-                      <Label className="text-sm text-muted-foreground">Document ID</Label>
+                      <Label className="text-sm text-muted-foreground">{t('chunks.documentId')}</Label>
                       <p className="text-sm font-mono">{chunk.document_id}</p>
                     </div>
                   )}
@@ -521,23 +527,23 @@ export default function DocumentChunks() {
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add New Chunk</DialogTitle>
+            <DialogTitle>{t('chunks.addChunk')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleAddChunk} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="content">Content *</Label>
+              <Label htmlFor="content">{t('chunks.chunkContent')} *</Label>
               <Textarea
                 id="content"
                 value={formData.content}
                 onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                placeholder="Enter chunk content"
+                placeholder={t('chunks.chunkContentPlaceholder')}
                 required
                 rows={6}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="keywords">Important Keywords</Label>
+              <Label htmlFor="keywords">{t('chunks.importantKeywords')}</Label>
               <div className="flex space-x-2">
                 <Input
                   id="keywords"
@@ -549,10 +555,10 @@ export default function DocumentChunks() {
                       handleAddKeyword();
                     }
                   }}
-                  placeholder="Enter keyword and press Enter"
+                  placeholder={t('chunks.enterKeyword')}
                 />
                 <Button type="button" onClick={handleAddKeyword}>
-                  Add
+                  {t('common.add')}
                 </Button>
               </div>
               {formData.important_keywords.length > 0 && (
@@ -577,7 +583,7 @@ export default function DocumentChunks() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="questions">Questions</Label>
+              <Label htmlFor="questions">{t('chunks.questions')}</Label>
               <div className="flex space-x-2">
                 <Input
                   id="questions"
@@ -589,10 +595,10 @@ export default function DocumentChunks() {
                       handleAddQuestion();
                     }
                   }}
-                  placeholder="Enter question and press Enter"
+                  placeholder={t('chunks.enterQuestion')}
                 />
                 <Button type="button" onClick={handleAddQuestion}>
-                  Add
+                  {t('common.add')}
                 </Button>
               </div>
               {formData.questions.length > 0 && (
@@ -621,9 +627,9 @@ export default function DocumentChunks() {
                 setAddDialogOpen(false);
                 resetForm();
               }}>
-                Cancel
+                {t('common.cancel')}
               </Button>
-              <Button type="submit">Add Chunk</Button>
+              <Button type="submit">{t('chunks.addChunk')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -633,23 +639,23 @@ export default function DocumentChunks() {
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Chunk</DialogTitle>
+            <DialogTitle>{t('chunks.editChunk')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleUpdateChunk} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-content">Content *</Label>
+              <Label htmlFor="edit-content">{t('chunks.chunkContent')} *</Label>
               <Textarea
                 id="edit-content"
                 value={formData.content}
                 onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                placeholder="Enter chunk content"
+                placeholder={t('chunks.chunkContentPlaceholder')}
                 required
                 rows={6}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-keywords">Important Keywords</Label>
+              <Label htmlFor="edit-keywords">{t('chunks.importantKeywords')}</Label>
               <div className="flex space-x-2">
                 <Input
                   id="edit-keywords"
@@ -661,10 +667,10 @@ export default function DocumentChunks() {
                       handleAddKeyword();
                     }
                   }}
-                  placeholder="Enter keyword and press Enter"
+                  placeholder={t('chunks.enterKeyword')}
                 />
                 <Button type="button" onClick={handleAddKeyword}>
-                  Add
+                  {t('common.add')}
                 </Button>
               </div>
               {formData.important_keywords && formData.important_keywords.length > 0 && (
@@ -694,9 +700,9 @@ export default function DocumentChunks() {
                 setEditingChunk(null);
                 resetForm();
               }}>
-                Cancel
+                {t('common.cancel')}
               </Button>
-              <Button type="submit">Update Chunk</Button>
+              <Button type="submit">{t('chunks.updateChunk')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

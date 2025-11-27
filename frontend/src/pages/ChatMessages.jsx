@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog';
+import { API_BASE_URL_WITHOUT_API, getApiUrl } from '../config';
 
 export default function ChatMessages() {
           const { chatId, sessionId } = useParams();
@@ -40,11 +41,6 @@ export default function ChatMessages() {
     "What are the key findings?",
     "Can you summarize the content?",
   ];
-  
-  // Get API URL from environment or use default
-  const getApiUrl = () => {
-    return 'http://46.224.35.114:5002';
-  };
 
   useEffect(() => {
     fetchSessionDetails();
@@ -264,7 +260,7 @@ export default function ChatMessages() {
       
       // Use fetch for streaming with custom headers
       const response = await fetch(
-        `${getApiUrl()}/api/ragflow/chats/${chatId}/completions`,
+        getApiUrl(`/ragflow/chats/${chatId}/completions`),
         {
           method: 'POST',
           headers: {
@@ -531,9 +527,10 @@ export default function ChatMessages() {
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 w-full fixed inset-0 left-0 right-0 top-0 bottom-0" style={{ zIndex: 10 }}>
+    <div className="flex flex-col h-screen bg-gray-50 w-full -mx-6 -my-8">
+      <div className="w-full max-w-[800px] mx-auto flex flex-col h-full rounded-lg overflow-hidden bg-white shadow-lg">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b bg-white shadow-sm">
+      <div className="flex items-center justify-between p-4 border-b bg-white">
         <div className="flex items-center space-x-3">
           <Button 
             variant="ghost" 
@@ -544,9 +541,17 @@ export default function ChatMessages() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex items-center space-x-2">
-            <div className="relative">
-              <Sparkles className="h-5 w-5 text-blue-600" />
-            </div>
+            {chatInfo?.avatar ? (
+              <img 
+                src={chatInfo.avatar} 
+                alt={chatInfo.name || 'Avatar'} 
+                className="w-8 h-8 rounded-full object-cover"
+              />
+            ) : (
+              <div className="relative">
+                <Sparkles className="h-5 w-5 text-blue-600" />
+              </div>
+            )}
             <h1 className="text-lg font-semibold text-gray-900">
               {sessionInfo?.name 
                 ? (sessionInfo.name.length > 20 
@@ -588,7 +593,7 @@ export default function ChatMessages() {
       {/* Messages Area */}
       <div 
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-6 w-full"
+        className="flex-1 overflow-y-auto p-6 w-full bg-gray-50"
         style={{ scrollBehavior: 'auto' }}
       >
         {!hasMessages ? (
@@ -660,27 +665,35 @@ export default function ChatMessages() {
                   } animate-in fade-in slide-in-from-bottom-2 duration-300`}
                 >
                   {/* Avatar */}
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                    message.role === 'user' 
-                      ? 'bg-gray-200' 
-                      : characterStyle?.avatarBg || 'bg-purple-100'
-                  }`}>
-                    {message.role === 'user' ? (
+                  {message.role === 'user' ? (
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
                       <User className="h-4 w-4 text-gray-600" />
-                    ) : (
+                    </div>
+                  ) : chatInfo?.avatar ? (
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden">
+                      <img 
+                        src={chatInfo.avatar} 
+                        alt={chatInfo.name || 'Assistant'} 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                      characterStyle?.avatarBg || 'bg-purple-100'
+                    }`}>
                       <AvatarIcon className={`h-4 w-4 ${characterStyle?.avatarColor || 'text-purple-600'}`} />
-                    )}
-                  </div>
+                    </div>
+                  )}
                   
                   {/* Message Bubble */}
                   <div className={`flex-1 max-w-[85%] ${
                     message.role === 'user' ? 'items-end' : 'items-start'
                   } flex flex-col`}>
                     <div
-                      className={`rounded-2xl px-4 py-3 shadow-sm ${
+                      className={`px-4 py-3 shadow-sm border-2 ${
                         message.role === 'user'
-                          ? 'bg-gray-100 text-gray-900'
-                          : `${characterStyle?.bgColor || 'bg-purple-50'} ${characterStyle?.textColor || 'text-gray-900'} border ${characterStyle?.borderColor || 'border-purple-100'}`
+                          ? 'bg-gray-100 text-gray-900 border-gray-300 rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl rounded-br-md'
+                          : `${characterStyle?.bgColor || 'bg-purple-50'} ${characterStyle?.textColor || 'text-gray-900'} ${characterStyle?.borderColor || 'border-purple-300'} rounded-tr-2xl rounded-tl-2xl rounded-br-2xl rounded-bl-md`
                       }`}
                     >
                       {isEmptyAssistant ? (
@@ -969,6 +982,7 @@ export default function ChatMessages() {
             </div>
           </form>
         )}
+      </div>
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Button } from '../components/ui/button';
 import { useToast } from '../components/ui/use-toast.jsx';
+import { useTranslation } from 'react-i18next';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -14,6 +15,7 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,14 +24,14 @@ export default function Login() {
     try {
       await login(email, password);
       toast({
-        title: 'Success',
-        description: 'Logged in successfully',
+        title: t('toast.success'),
+        description: t('login.success'),
       });
       navigate('/');
     } catch (error) {
-      const errorMessage = error.response?.data?.error || error.message || 'Login failed';
+      const errorMessage = error.response?.data?.error || error.message || t('login.failed');
       toast({
-        title: 'Error',
+        title: t('toast.error'),
         description: errorMessage,
         variant: 'destructive',
       });
@@ -42,26 +44,26 @@ export default function Login() {
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/5">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Training Portal</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">{t('login.title')}</CardTitle>
           <CardDescription className="text-center">
-            Enter your credentials to access your account
+            {t('login.subtitle')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('login.email')}</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="name@example.com"
+                placeholder={t('login.emailPlaceholder')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('login.password')}</Label>
               <Input
                 id="password"
                 type="password"
@@ -71,10 +73,10 @@ export default function Login() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Logging in...' : 'Login'}
+              {loading ? t('login.loggingIn') : t('login.login')}
             </Button>
             <div className="text-sm text-muted-foreground text-center pt-4 border-t">
-              <p className="font-semibold mb-2">Default Admin Credentials:</p>
+              <p className="font-semibold mb-2">{t('login.defaultCredentials')}</p>
               <p>Email: admin@trainingportal.com</p>
               <p>Password: admin123</p>
             </div>
